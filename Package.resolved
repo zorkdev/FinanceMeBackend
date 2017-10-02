@@ -171,6 +171,15 @@
           "revision": "59bde985edbdf6480c541485317c8d41cc5fefb7",
           "version": "2.2.2"
         }
+      },
+      {
+        "package": "zlib",
+        "repositoryURL": "https://github.com/Zewo/zlib.git",
+        "state": {
+          "branch": null,
+          "revision": "4967a680a4e8cfbf167332dee7f0ec1043fd3b04",
+          "version": "0.4.0"
+        }
       }
     ]
   },

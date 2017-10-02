@@ -8,6 +8,7 @@ extension Config {
 
         try setupProviders()
         try setupPreparations()
+        setupMiddlewares()
     }
     
     /// Configure providers
@@ -19,5 +20,9 @@ extension Config {
     /// schemas prepared before the app boots
     private func setupPreparations() throws {
         preparations.append(Post.self)
+    }
+
+    private func setupMiddlewares() {
+        addConfigurable(middleware: GzipMiddleware(), name: "gzip")
     }
 }
