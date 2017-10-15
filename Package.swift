@@ -1,23 +1,29 @@
+// swift-tools-version:4.0
+
 import PackageDescription
 
 let package = Package(
     name: "zorkdev",
-    targets: [
-        Target(name: "App"),
-        Target(name: "Run", dependencies: ["App"]),
+    products: [
+        .library(name: "App", targets: ["App"]),
+        .executable(name: "Run", targets: ["Run"])
     ],
     dependencies: [
-        .Package(url: "https://github.com/vapor/vapor.git", majorVersion: 2),
-        .Package(url: "https://github.com/vapor/fluent-provider.git", majorVersion: 1),
-        .Package(url: "https://github.com/vapor-community/postgresql-provider.git", majorVersion: 2, minor: 0),
-        .Package(url: "https://github.com/Zewo/zlib.git", majorVersion: 0, minor: 4)
+        .package(url: "https://github.com/vapor/vapor.git", from: "2.2.0"),
+        .package(url: "https://github.com/vapor/fluent-provider.git", from: "1.2.0"),
+        .package(url: "https://github.com/vapor-community/postgresql-provider.git", from: "2.1.0"),
+        .package(url: "https://github.com/Zewo/zlib.git", from: "0.4.0")
     ],
-    exclude: [
-        "Config",
-        "Database",
-        "Localization",
-        "Public",
-        "Resources",
+    targets: [
+        .target(name: "App", dependencies: ["Vapor", "FluentProvider", "PostgreSQLProvider", "zlib"],
+            exclude: [
+                "Config",
+                "Database",
+                "Localization",
+                "Public",
+                "Resources",
+            ]),
+        .target(name: "Run", dependencies: ["App"])
     ]
 )
 

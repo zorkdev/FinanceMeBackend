@@ -138,7 +138,7 @@
       },
       {
         "package": "PostgreSQLDriver",
-        "repositoryURL": "https://github.com/vapor/postgresql-driver.git",
+        "repositoryURL": "https://github.com/vapor-community/postgresql-driver.git",
         "state": {
           "branch": null,
           "revision": "a8a410d4291094b0adc4ebb49adbc9d9310567ef",
@@ -150,8 +150,8 @@
         "repositoryURL": "https://github.com/vapor-community/postgresql-provider.git",
         "state": {
           "branch": null,
-          "revision": "89cb3159f208ee6a2c241c135ebb069191fb6fbc",
-          "version": "2.0.0"
+          "revision": "28eda35d9887172d3f3e5769db603339d3e88f05",
+          "version": "2.1.0"
         }
       },
       {
