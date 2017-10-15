@@ -21,6 +21,15 @@ final class ReminderController: ResourceRepresentable {
     func store(_ req: Request) throws -> ResponseRepresentable {
         let reminder = try req.reminder()
         try reminder.save()
+
+        if let json = req.json, let categories = json["categories"]?.array {
+            for categoryJSON in categories {
+                if let category = try Category.find(categoryJSON["id"]) {
+                    try reminder.categories.add(category)
+                }
+            }
+        }
+
         return reminder
     }
 
@@ -30,6 +39,17 @@ final class ReminderController: ResourceRepresentable {
             store: store,
             show: show
         )
+    }
+
+    func indexCategories(_ req: Request) throws -> ResponseRepresentable {
+        let reminder = try req.parameters.next(Reminder.self)
+        return try reminder.categories.all().makeJSON()
+    }
+
+    func addRoutes(to group: RouteBuilder) throws {
+        try group.resource("reminders", ReminderController.self)
+        let reminderGroup = group.grouped("reminders")
+        reminderGroup.get(Reminder.parameter, "categories", handler: indexCategories)
     }
     
 }
@@ -42,4 +62,5 @@ extension Request {
         guard let json = json else { throw Abort.badRequest }
         return try Reminder(json: json)
     }
+
 }

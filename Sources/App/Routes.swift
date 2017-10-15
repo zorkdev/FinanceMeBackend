@@ -8,6 +8,13 @@ extension Droplet {
 
         let apiGroup = grouped("api")
 
-        try apiGroup.resource("reminders", ReminderController.self)
+        let userController = UserController()
+        try userController.addRoutes(to: apiGroup)
+
+        let categoryController = CategoryController()
+        try categoryController.addRoutes(to: apiGroup)
+
+        let reminderController = ReminderController()
+        try reminderController.addRoutes(to: apiGroup)
     }
 }

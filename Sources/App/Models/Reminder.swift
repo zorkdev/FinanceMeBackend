@@ -9,29 +9,43 @@ import Vapor
 import FluentProvider
 
 final class Reminder: Model {
-    let storage = Storage()
-
-    let title: String
-    let description: String
 
     static let idKey = "id"
     static let titleKey = "title"
     static let descriptionKey = "description"
+    static let userIDKey = "user_id"
 
-    init(title: String, description: String) {
+    let storage = Storage()
+
+    let title: String
+    let description: String
+    let userID: Identifier?
+
+    var user: Parent<Reminder, User> {
+        return parent(id: userID)
+    }
+
+    var categories: Siblings<Reminder, Category, Pivot<Reminder, Category>> {
+        return siblings()
+    }
+
+    init(title: String, description: String, user: User) {
         self.title = title
         self.description = description
+        userID = user.id
     }
 
     init(row: Row) throws {
-        self.title = try row.get(Reminder.titleKey)
-        self.description = try row.get(Reminder.descriptionKey)
+        title = try row.get(Reminder.titleKey)
+        description = try row.get(Reminder.descriptionKey)
+        userID = try row.get(User.foreignIdKey)
     }
     
     func makeRow() throws -> Row {
         var row = Row()
         try row.set(Reminder.titleKey, title)
         try row.set(Reminder.descriptionKey, description)
+        try row.set(User.foreignIdKey, userID)
         return row
     }
 
@@ -44,6 +58,7 @@ extension Reminder: Preparation {
             builder.id()
             builder.string(Reminder.titleKey)
             builder.string(Reminder.descriptionKey)
+            builder.parent(User.self)
         }
     }
 
@@ -56,7 +71,9 @@ extension Reminder: Preparation {
 extension Reminder: JSONConvertible {
 
     convenience init(json: JSON) throws {
-        try self.init(title: json.get(Reminder.titleKey), description: json.get(Reminder.descriptionKey))
+        let userId: Identifier = try json.get("user_id")
+        guard let user = try User.find(userId) else { throw Abort.badRequest }
+        try self.init(title: json.get(Reminder.titleKey), description: json.get(Reminder.descriptionKey), user: user)
     }
 
     func makeJSON() throws -> JSON {
@@ -64,6 +81,7 @@ extension Reminder: JSONConvertible {
         try json.set(Reminder.idKey, id)
         try json.set(Reminder.titleKey, title)
         try json.set(Reminder.descriptionKey, description)
+        try json.set(Reminder.userIDKey, userID)
         return json
     }
 
