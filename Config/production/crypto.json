@@ -2,12 +2,12 @@
     "hash": {
         "method": "sha256",
         "encoding": "hex",
-        "key": "uvRD0LG3KcqR1vKKUuSJd2thbk2JPG1kgmsuuwHQ+g4="
+        "key": "$HASH_KEY"
     },
     
     "cipher": {
         "method": "aes256",
         "encoding": "base64",
-        "key": "HCfu+QgAfMGPcSyOlIIXbPFRnIJfihq2EeRPb/TJ+lE="
+        "key": "$CIPHER_KEY"
     }
 }
