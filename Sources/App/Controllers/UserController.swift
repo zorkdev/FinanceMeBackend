@@ -8,13 +8,10 @@
 import Vapor
 import FluentProvider
 
-final class UserController: ResourceRepresentable {
+final class UserController {
 
-    func index(_ req: Request) throws -> ResponseRepresentable {
-        return try User.all().makeJSON()
-    }
-
-    func show(_ req: Request, user: User) throws -> ResponseRepresentable {
+    func showCurrentUser(_ req: Request) throws -> ResponseRepresentable {
+        let user = try req.authUser()
         return user
     }
 
@@ -26,19 +23,12 @@ final class UserController: ResourceRepresentable {
         return user
     }
 
-    func makeResource() -> Resource<User> {
-        return Resource(
-            index: index,
-            show: show
-        )
-    }
-
     func addPublicRoutes(to group: RouteBuilder) throws {
         group.add(.post, "users", value: store)
     }
 
     func addRoutes(to group: RouteBuilder) throws {
-        try group.resource("users", UserController.self)
+        group.add(.get, "users/me", value: showCurrentUser)
     }
 
 }
