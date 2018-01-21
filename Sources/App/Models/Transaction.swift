@@ -8,6 +8,35 @@
 import Vapor
 import FluentProvider
 
+enum TransactionDirection: String {
+
+    case none = "NONE"
+    case outbound = "OUTBOUND"
+    case inbound = "INBOUND"
+
+}
+
+enum TransactionSource: String {
+
+    case directCredit = "DIRECT_CREDIT"
+    case directDebit = "DIRECT_DEBIT"
+    case directDebitDispute = "DIRECT_DEBIT_DISPUTE"
+    case internalTransfer = "INTERNAL_TRANSFER"
+    case masterCard = "MASTER_CARD"
+    case fasterPaymentsIn = "FASTER_PAYMENTS_IN"
+    case fasterPaymentsOut = "FASTER_PAYMENTS_OUT"
+    case fasterPaymentsReversal = "FASTER_PAYMENTS_REVERSAL"
+    case stripeFunding = "STRIPE_FUNDING"
+    case interestPayment = "INTEREST_PAYMENT"
+    case nostroDeposit = "NOSTRO_DEPOSIT"
+    case overdraft = "OVERDRAFT"
+    case externelRegularInbound = "EXTERNAL_REGULAR_INBOUND"
+    case externalRegularOutbound = "EXTERNAL_REGULAR_OUTBOUND"
+    case externalInbound = "EXTERNAL_INBOUND"
+    case externalOutbound = "EXTERNAL_OUTBOUND"
+
+}
+
 final class Transaction: Model {
 
     static let idKey = "id"
@@ -23,10 +52,10 @@ final class Transaction: Model {
 
     let currency: String
     let amount: Double
-    let direction: String
+    let direction: TransactionDirection
     let created: Date
     let narrative: String
-    let source: String
+    let source: TransactionSource
     let balance: Double
 
     var userId: Identifier?
@@ -37,10 +66,10 @@ final class Transaction: Model {
 
     init(currency: String,
          amount: Double,
-         direction: String,
+         direction: TransactionDirection,
          created: Date,
          narrative: String,
-         source: String,
+         source: TransactionSource,
          balance: Double,
          user: User?
         ) {
@@ -57,22 +86,32 @@ final class Transaction: Model {
     init(row: Row) throws {
         currency = try row.get(Transaction.currencyKey)
         amount = try row.get(Transaction.amountKey)
-        direction = try row.get(Transaction.directionKey)
         created = try row.get(Transaction.createdKey)
         narrative = try row.get(Transaction.narrativeKey)
-        source = try row.get(Transaction.sourceKey)
         balance = try row.get(Transaction.balanceKey)
         userId = try row.get(User.foreignIdKey)
+
+        let directionString: String = try row.get(Transaction.directionKey)
+        guard let directionEnum = TransactionDirection(rawValue: directionString) else {
+            throw Abort.serverError
+        }
+        direction = directionEnum
+
+        let sourceString: String = try row.get(Transaction.sourceKey)
+        guard let sourceEnum = TransactionSource(rawValue: sourceString) else {
+            throw Abort.serverError
+        }
+        source = sourceEnum
     }
 
     func makeRow() throws -> Row {
         var row = Row()
         try row.set(Transaction.currencyKey, currency)
         try row.set(Transaction.amountKey, amount)
-        try row.set(Transaction.directionKey, direction)
+        try row.set(Transaction.directionKey, direction.rawValue)
         try row.set(Transaction.createdKey, created)
         try row.set(Transaction.narrativeKey, narrative)
-        try row.set(Transaction.sourceKey, source)
+        try row.set(Transaction.sourceKey, source.rawValue)
         try row.set(Transaction.balanceKey, balance)
         try row.set(User.foreignIdKey, userId)
         return row
@@ -105,12 +144,22 @@ extension Transaction: Preparation {
 extension Transaction: JSONConvertible {
 
     convenience init(json: JSON) throws {
+        let directionString: String = try json.get(Transaction.directionKey)
+        guard let direction = TransactionDirection(rawValue: directionString) else {
+            throw NodeError.invalidDictionaryKeyType
+        }
+
+        let sourceString: String = try json.get(Transaction.sourceKey)
+        guard let source = TransactionSource(rawValue: sourceString) else {
+            throw NodeError.invalidDictionaryKeyType
+        }
+
         try self.init(currency: json.get(Transaction.currencyKey),
                       amount: json.get(Transaction.amountKey),
-                      direction: json.get(Transaction.directionKey),
+                      direction: direction,
                       created: json.get(Transaction.createdKey),
                       narrative: json.get(Transaction.narrativeKey),
-                      source: json.get(Transaction.sourceKey),
+                      source: source,
                       balance: json.get(Transaction.balanceKey),
                       user: nil)
     }
@@ -120,10 +169,10 @@ extension Transaction: JSONConvertible {
         try json.set(Transaction.idKey, id)
         try json.set(Transaction.currencyKey, currency)
         try json.set(Transaction.amountKey, amount)
-        try json.set(Transaction.directionKey, direction)
+        try json.set(Transaction.directionKey, direction.rawValue)
         try json.set(Transaction.createdKey, created)
         try json.set(Transaction.narrativeKey, narrative)
-        try json.set(Transaction.sourceKey, source)
+        try json.set(Transaction.sourceKey, source.rawValue)
         try json.set(Transaction.balanceKey, balance)
         return json
     }
