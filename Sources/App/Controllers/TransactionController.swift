@@ -38,18 +38,8 @@ final class TransactionController: ResourceRepresentable {
         )
     }
 
-    func indexTransactionsSummary(_ req: Request) throws -> ResponseRepresentable {
-        let user = try req.authUser()
-        let transactions = try Transaction.all().filter({ $0.userId == user.id })
-        let sumAmount = transactions.flatMap({ $0.amount }).reduce(0, +)
-        let transactionsSummary = TransactionsSummary(sumAmount: sumAmount)
-        return try transactionsSummary.makeJSON()
-    }
-
     func addRoutes(to group: RouteBuilder) throws {
         try group.resource("transactions", TransactionController.self)
-        let transactionsGroup = group.grouped("transactions")
-        transactionsGroup.get("summary", handler: indexTransactionsSummary)
     }
 
 }

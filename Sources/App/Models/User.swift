@@ -16,6 +16,7 @@ final class User: Model {
     static let nameKey = "name"
     static let paydayKey = "payday"
     static let endOfMonthBalanceKey = "endOfMonthBalance"
+    static let spendingLimitKey = "spendingLimit"
 
     let storage = Storage()
 
@@ -29,6 +30,12 @@ final class User: Model {
 
     var transactions: Children<User, Transaction> {
         return children()
+    }
+
+    var spendingLimit: Double {
+        guard let transactions = try? self.transactions.all() else { return 0 }
+        let sum = transactions.flatMap({ $0.amount }).reduce(0, +)
+        return sum
     }
 
     init(name: String,
@@ -88,6 +95,7 @@ extension User: JSONConvertible {
         try json.set(User.nameKey, name)
         try json.set(User.paydayKey, payday)
         try json.set(User.endOfMonthBalanceKey, endOfMonthBalance)
+        try json.set(User.spendingLimitKey, spendingLimit)
         return json
     }
 
