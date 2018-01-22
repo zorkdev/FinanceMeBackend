@@ -21,26 +21,24 @@ final class UserController: ResourceRepresentable {
     func store(_ req: Request) throws -> ResponseRepresentable {
         let user = try req.user()
         try user.save()
+        let token = try Token.generate(for: user)
+        try token.save()
         return user
     }
 
     func makeResource() -> Resource<User> {
         return Resource(
             index: index,
-            store: store,
             show: show
         )
     }
 
-    func indexReminders(_ req: Request) throws -> ResponseRepresentable {
-        let user = try req.parameters.next(User.self)
-        return try user.reminders.all().makeJSON()
+    func addPublicRoutes(to group: RouteBuilder) throws {
+        group.add(.post, "users", value: store)
     }
 
     func addRoutes(to group: RouteBuilder) throws {
         try group.resource("users", UserController.self)
-        let userGroup = group.grouped("users")
-        userGroup.get(User.parameter, "reminders", handler: indexReminders)
     }
 
 }
@@ -52,6 +50,10 @@ extension Request {
     func user() throws -> User {
         guard let json = json else { throw Abort.badRequest }
         return try User(json: json)
+    }
+
+    func authUser() throws -> User {
+        return try auth.assertAuthenticated()
     }
     
 }

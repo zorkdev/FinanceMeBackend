@@ -1,5 +1,6 @@
 import FluentProvider
 import PostgreSQLProvider
+import AuthProvider
 
 extension Config {
     public func setup() throws {
@@ -13,13 +14,13 @@ extension Config {
     private func setupProviders() throws {
         try addProvider(FluentProvider.Provider.self)
         try addProvider(PostgreSQLProvider.Provider.self)
+        try addProvider(AuthProvider.Provider.self)
     }
 
     private func setupPreparations() throws {
+        preparations.append(Token.self)
         preparations.append(User.self)
-        preparations.append(Reminder.self)
-        preparations.append(Category.self)
-        preparations.append(Pivot<Reminder, Category>.self)
+        preparations.append(Transaction.self)
     }
 
     private func setupMiddlewares() {

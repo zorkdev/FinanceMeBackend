@@ -7,17 +7,23 @@
 
 import Vapor
 import FluentProvider
+import AuthProvider
 
 final class User: Model {
 
     static let idKey = "id"
     static let nameKey = "name"
+    static let tokenKey = "token"
 
     let storage = Storage()
 
     let name: String
 
-    var reminders: Children<User, Reminder> {
+    var token: Children<User, Token> {
+        return children()
+    }
+
+    var transactions: Children<User, Transaction> {
         return children()
     }
 
@@ -62,9 +68,17 @@ extension User: JSONConvertible {
         var json = JSON()
         try json.set(User.idKey, id)
         try json.set(User.nameKey, name)
+        let tokenString = try token.first()?.token
+        try json.set(User.tokenKey, tokenString)
         return json
     }
 
 }
 
 extension User: ResponseRepresentable {}
+
+extension User: TokenAuthenticatable {
+
+    public typealias TokenType = Token
+
+}
