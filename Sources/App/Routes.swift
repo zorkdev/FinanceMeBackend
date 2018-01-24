@@ -15,7 +15,7 @@ enum Routes: String {
 
 extension Droplet {
     func setupRoutes() throws {
-        get(Routes.root.rawValue) { request in
+        get(Routes.root.rawValue) { _ in
             return try self.view.make(Routes.index.rawValue)
         }
 

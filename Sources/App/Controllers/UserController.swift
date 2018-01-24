@@ -37,5 +37,5 @@ extension Request {
     func authUser() throws -> User {
         return try auth.assertAuthenticated()
     }
-    
+
 }

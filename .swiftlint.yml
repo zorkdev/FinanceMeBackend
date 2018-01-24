@@ -1,0 +1,10 @@
+excluded:
+- .build
+- Config
+- Public
+- Sources/App/Middlewares
+- Resources
+- Tests
+
+identifier_name:
+  min_length: 2
