@@ -15,11 +15,11 @@ final class StarlingTransactionsController {
         var parameters = [String: NodeRepresentable]()
 
         if let from = from {
-            parameters[StarlingParameters.from.rawValue] = from
+            parameters[StarlingParameters.from.rawValue] = Formatters.apiDate.string(from: from)
         }
 
         if let to = to {
-            parameters[StarlingParameters.to.rawValue] = to
+            parameters[StarlingParameters.to.rawValue] = Formatters.apiDate.string(from: to)
         }
 
         let response = try StarlingClientController.shared.performRequest(method: .get,
