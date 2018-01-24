@@ -72,7 +72,7 @@ extension User: Preparation {
             builder.string(Constants.nameKey)
             builder.int(Constants.paydayKey)
             builder.double(Constants.endOfMonthBalanceKey)
-            builder.double(Constants.sTokenKey)
+            builder.string(Constants.sTokenKey)
         }
     }
 
