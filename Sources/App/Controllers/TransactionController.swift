@@ -30,11 +30,29 @@ final class TransactionController: ResourceRepresentable {
         return transaction
     }
 
+    func replace(_ req: Request, transaction: Transaction) throws -> ResponseRepresentable {
+        let updatedTransaction = try req.transaction()
+        let user = try req.authUser()
+        guard transaction.userId == user.id else { throw Abort.notFound }
+        updatedTransaction.userId = user.id
+        try updatedTransaction.save()
+        return updatedTransaction
+    }
+
+    func destroy(_ req: Request, transaction: Transaction) throws -> ResponseRepresentable {
+        let user = try req.authUser()
+        guard transaction.userId == user.id else { throw Abort.notFound }
+        try transaction.delete()
+        return Response(status: .ok)
+    }
+
     func makeResource() -> Resource<Transaction> {
         return Resource(
             index: index,
             store: store,
-            show: show
+            show: show,
+            replace: replace,
+            destroy: destroy
         )
     }
 

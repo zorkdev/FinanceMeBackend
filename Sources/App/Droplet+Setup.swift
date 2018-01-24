@@ -3,6 +3,6 @@
 extension Droplet {
     public func setup() throws {
         try setupRoutes()
-        // Do any additional droplet setup
+        StarlingClientController.shared.addTo(drop: self)
     }
 }

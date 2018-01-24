@@ -23,11 +23,11 @@ final class UserController {
         return user
     }
 
-    func addPublicRoutes(to group: RouteBuilder) throws {
+    func addPublicRoutes(to group: RouteBuilder) {
         group.add(.post, "users", value: store)
     }
 
-    func addRoutes(to group: RouteBuilder) throws {
+    func addRoutes(to group: RouteBuilder) {
         group.add(.get, "users/me", value: showCurrentUser)
     }
 

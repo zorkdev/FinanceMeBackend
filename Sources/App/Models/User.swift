@@ -17,12 +17,14 @@ final class User: Model {
     static let paydayKey = "payday"
     static let endOfMonthBalanceKey = "endOfMonthBalance"
     static let spendingLimitKey = "spendingLimit"
+    static let sTokenKey = "sToken"
 
     let storage = Storage()
 
     let name: String
     let payday: Int
     let endOfMonthBalance: Double
+    var sToken: String?
 
     var token: Children<User, Token> {
         return children()
@@ -40,16 +42,19 @@ final class User: Model {
 
     init(name: String,
          payday: Int,
-         endOfMonthBalance: Double) {
+         endOfMonthBalance: Double,
+         sToken: String?) {
         self.name = name
         self.payday = payday
         self.endOfMonthBalance = endOfMonthBalance
+        self.sToken = sToken
     }
 
     init(row: Row) throws {
         name = try row.get(User.nameKey)
         payday = try row.get(User.paydayKey)
         endOfMonthBalance = try row.get(User.endOfMonthBalanceKey)
+        sToken = try row.get(User.sTokenKey)
     }
 
     func makeRow() throws -> Row {
@@ -57,6 +62,7 @@ final class User: Model {
         try row.set(User.nameKey, name)
         try row.set(User.paydayKey, payday)
         try row.set(User.endOfMonthBalanceKey, endOfMonthBalance)
+        try row.set(User.sTokenKey, sToken)
         return row
     }
 
@@ -70,6 +76,7 @@ extension User: Preparation {
             builder.string(User.nameKey)
             builder.int(User.paydayKey)
             builder.double(User.endOfMonthBalanceKey)
+            builder.double(User.sTokenKey, optional: true, unique: false, default: nil)
         }
     }
 
@@ -84,7 +91,8 @@ extension User: JSONConvertible {
     convenience init(json: JSON) throws {
         try self.init(name: json.get(User.nameKey),
                       payday: json.get(User.paydayKey),
-                      endOfMonthBalance: json.get(User.endOfMonthBalanceKey))
+                      endOfMonthBalance: json.get(User.endOfMonthBalanceKey),
+                      sToken: nil)
     }
 
     func makeJSON() throws -> JSON {
