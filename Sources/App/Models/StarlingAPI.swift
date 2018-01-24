@@ -1,12 +1,3 @@
-//
-//  StarlingAPI.swift
-//  App
-//
-//  Created by Attila Nemet on 23/01/2018.
-//
-
-import Foundation
-
 enum StarlingAPI: String {
     static let baseURL = "https://api.starlingbank.com/api/v1/"
 

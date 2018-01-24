@@ -1,12 +1,4 @@
-//
-//  UserController.swift
-//  App
-//
-//  Created by Attila Nemet on 15/10/2017.
-//
-
 import Vapor
-import FluentProvider
 
 final class UserController {
 
@@ -24,11 +16,11 @@ final class UserController {
     }
 
     func addPublicRoutes(to group: RouteBuilder) {
-        group.add(.post, "users", value: store)
+        group.add(.post, Routes.users.rawValue, value: store)
     }
 
     func addRoutes(to group: RouteBuilder) {
-        group.add(.get, "users/me", value: showCurrentUser)
+        group.add(.get, Routes.usersMe.rawValue, value: showCurrentUser)
     }
 
 }

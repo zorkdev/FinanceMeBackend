@@ -1,10 +1,3 @@
-//
-//  NetworkManager.swift
-//  App
-//
-//  Created by Attila Nemet on 23/01/2018.
-//
-
 import Vapor
 import HTTP
 
@@ -18,7 +11,7 @@ final class StarlingClientController {
         }
     }
 
-    private var drop: Droplet!
+    private var drop: Droplet?
 
     static let shared = StarlingClientController()
 
@@ -33,10 +26,11 @@ final class StarlingClientController {
                         token: String,
                         parameters: [String: NodeRepresentable]?,
                         body: JSON = nil) throws -> Response {
+        guard let drop = drop else { throw Abort.serverError}
 
         let headers: [HeaderKey: String] = [
-            HeaderKey.accept: Constants.content,
-            HeaderKey.authorization: Constants.authHeaderValue(token)
+            .accept: Constants.content,
+            .authorization: Constants.authHeaderValue(token)
         ]
 
         let response = try drop.client.request(method,

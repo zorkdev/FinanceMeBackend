@@ -1,19 +1,16 @@
-//
-//  Token.swift
-//  App
-//
-//  Created by Attila Nemet on 22/01/2018.
-//
-
 import Vapor
 import FluentProvider
 import Crypto
 
 final class Token: Model {
 
-    static let idKey = "id"
-    static let tokenKey = "token"
-    static let userIdKey = "userId"
+    private struct Constants {
+        static let idKey = "id"
+        static let tokenKey = "token"
+        static let userIdKey = "userId"
+
+        static let tokenBytes = 48
+    }
 
     let storage = Storage()
 
@@ -31,13 +28,13 @@ final class Token: Model {
     }
 
     init(row: Row) throws {
-        token = try row.get(Token.tokenKey)
+        token = try row.get(Constants.tokenKey)
         userId = try row.get(User.foreignIdKey)
     }
 
     func makeRow() throws -> Row {
         var row = Row()
-        try row.set(Token.tokenKey, token)
+        try row.set(Constants.tokenKey, token)
         try row.set(User.foreignIdKey, userId)
         return row
     }
@@ -49,7 +46,7 @@ extension Token: Preparation {
     static func prepare(_ database: Database) throws {
         try database.create(self) { builder in
             builder.id()
-            builder.string(Token.tokenKey)
+            builder.string(Constants.tokenKey)
             builder.parent(User.self)
         }
     }
@@ -63,15 +60,15 @@ extension Token: Preparation {
 extension Token: JSONConvertible {
 
     convenience init(json: JSON) throws {
-        let userId: Identifier = try json.get(Token.userIdKey)
+        let userId: Identifier = try json.get(Constants.userIdKey)
         guard let user = try User.find(userId) else { throw Abort.badRequest }
-        try self.init(token: json.get(Token.tokenKey),
+        try self.init(token: json.get(Constants.tokenKey),
                       user: user)
     }
 
     func makeJSON() throws -> JSON {
         var json = JSON()
-        try json.set(Token.tokenKey, token)
+        try json.set(Constants.tokenKey, token)
         return json
     }
 
@@ -82,7 +79,7 @@ extension Token: ResponseRepresentable {}
 extension Token {
 
     static func generate(for user: User) throws -> Token {
-        let random = try Crypto.Random.bytes(count: 48)
+        let random = try Crypto.Random.bytes(count: Constants.tokenBytes)
         return Token(token: random.base64Encoded.makeString(), user: user)
     }
 

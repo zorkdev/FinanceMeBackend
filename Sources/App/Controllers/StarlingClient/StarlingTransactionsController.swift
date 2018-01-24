@@ -1,18 +1,16 @@
-//
-//  StarlingTransactionsController.swift
-//  App
-//
-//  Created by Attila Nemet on 23/01/2018.
-//
-
 import Vapor
 
 final class StarlingTransactionsController {
 
-    func getTransactions(user: User, from: Date? = nil, to: Date? = nil) throws -> [Transaction] {
-        guard let token = user.sToken else {
-            throw Abort.serverError
-        }
+    private struct Constants {
+        static let embeddedKey = "_embedded"
+        static let transactionsKey = "transactions"
+    }
+
+    func getTransactions(user: User,
+                         from: Date? = nil,
+                         to: Date? = nil) throws -> [Transaction] {
+        guard let token = user.sToken else { throw Abort.serverError }
 
         var parameters = [String: NodeRepresentable]()
 
@@ -30,8 +28,8 @@ final class StarlingTransactionsController {
                                                                           parameters: parameters)
 
         guard let json = response.json,
-            let halResponse = json["_embedded"],
-            let transactionsList = halResponse["transactions"],
+            let halResponse = json[Constants.embeddedKey],
+            let transactionsList = halResponse[Constants.transactionsKey],
             let transactionsArray = transactionsList.array else {
             throw Abort.serverError
         }

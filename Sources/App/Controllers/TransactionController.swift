@@ -1,12 +1,4 @@
-//
-//  TransactionController.swift
-//  App
-//
-//  Created by Attila Nemet on 22/01/2018.
-//
-
 import Vapor
-import FluentProvider
 
 final class TransactionController: ResourceRepresentable {
 
@@ -57,7 +49,7 @@ final class TransactionController: ResourceRepresentable {
     }
 
     func addRoutes(to group: RouteBuilder) throws {
-        try group.resource("transactions", TransactionController.self)
+        try group.resource(Routes.transactions.rawValue, TransactionController.self)
     }
 
 }

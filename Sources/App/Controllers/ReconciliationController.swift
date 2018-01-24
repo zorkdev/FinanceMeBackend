@@ -1,12 +1,4 @@
-//
-//  ReconciliationController.swift
-//  App
-//
-//  Created by Attila Nemet on 24/01/2018.
-//
-
 import Vapor
-import FluentProvider
 
 final class ReconciliationController {
 
@@ -24,7 +16,7 @@ final class ReconciliationController {
     }
 
     func addRoutes(to group: RouteBuilder) {
-        group.add(.post, "reconcile", value: store)
+        group.add(.post, Routes.reconcile.rawValue, value: store)
     }
 
 }
