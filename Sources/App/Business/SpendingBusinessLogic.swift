@@ -6,8 +6,8 @@ final class SpendingBusinessLogic {
 
     func calculateEndOfMonthBalance(for user: User) throws -> Double {
         let now = Date()
-        let from = now.add(month: -2).set(day: user.payday).startOfDay
-        let to = now.add(month: -1).set(day: user.payday).startOfDay
+        let from = now.add(month: -1).set(day: user.payday).startOfDay
+        let to = now.set(day: user.payday).startOfDay
         let starlingTransactions = try starlingTransactionsController.getTransactions(user: user,
                                                                                       from: from,
                                                                                       to: to)

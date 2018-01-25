@@ -37,9 +37,9 @@ extension Date {
     }
 
     func set(day: Int) -> Date {
-        return calendar.date(bySetting: .day,
-                             value: day,
-                             of: self) ?? self
+        var components = calendar.dateComponents([.year, .month], from: self)
+        components.day = day
+        return calendar.date(from: components) ?? self
     }
 
     func add(day: Int) -> Date {
