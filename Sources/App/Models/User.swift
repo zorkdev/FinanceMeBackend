@@ -72,11 +72,7 @@ extension User: Preparation {
             builder.string(Constants.nameKey)
             builder.int(Constants.paydayKey)
             builder.double(Constants.endOfMonthBalanceKey)
-            builder.string(Constants.sTokenKey)
-        }
-
-        try? database.modify(self) { modifier in
-            modifier.string(Constants.sTokenKey)
+            builder.string(Constants.sTokenKey, optional: true)
         }
     }
 

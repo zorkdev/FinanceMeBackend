@@ -28,12 +28,6 @@ extension Date {
                              to: startOfWeek) ?? self
     }
 
-    var oneMonthAgo: Date {
-        return calendar.date(byAdding: .month,
-                             value: -1,
-                             to: self) ?? self
-    }
-
     var daysInMonth: Int {
         return calendar.range(of: .day, in: .month, for: self)?.count ?? 0
     }
@@ -42,18 +36,22 @@ extension Date {
         return Double(daysInMonth) / Double(Date.daysInWeek)
     }
 
-    var dayBefore: Date {
-        return calendar.date(byAdding: .day, value: -1, to: self) ?? self
+    func set(day: Int) -> Date {
+        return calendar.date(bySetting: .day,
+                             value: day,
+                             of: self) ?? self
     }
 
-    func next(day: Int, direction: Calendar.SearchDirection) -> Date {
-        var dateComponents = DateComponents()
-        dateComponents.day = day
-        return calendar.nextDate(after: self,
-                                 matching: dateComponents,
-                                 matchingPolicy: Calendar.MatchingPolicy.strict,
-                                 repeatedTimePolicy: Calendar.RepeatedTimePolicy.first,
-                                 direction: direction) ?? self
+    func add(day: Int) -> Date {
+        return calendar.date(byAdding: .day,
+                             value: day,
+                             to: self) ?? self
+    }
+
+    func add(month: Int) -> Date {
+        return calendar.date(byAdding: .month,
+                             value: month,
+                             to: self) ?? self
     }
 
     func numberOfDays(from: Date) -> Int {
