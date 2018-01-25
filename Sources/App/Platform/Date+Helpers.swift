@@ -60,6 +60,17 @@ extension Date {
                              to: self) ?? self
     }
 
+    func next(day: Int, direction: Calendar.SearchDirection) -> Date {
+        let monthModifier: Int
+
+        switch direction {
+        case .forward: monthModifier = self.day >= day ? 1 : 0
+        case .backward: monthModifier = self.day < day ? -1 : 0
+        }
+
+        return self.add(month: monthModifier).set(day: day).startOfDay
+    }
+
     func numberOfDays(from: Date) -> Int {
         return calendar.dateComponents([.day], from: from.startOfDay, to: self.startOfDay).day ?? 0
     }

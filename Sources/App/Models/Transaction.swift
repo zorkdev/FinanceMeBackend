@@ -28,11 +28,23 @@ enum TransactionSource: String {
     case externalInbound = "EXTERNAL_INBOUND"
     case externalOutbound = "EXTERNAL_OUTBOUND"
 
+    var isExternal: Bool {
+        switch self {
+        case .externalInbound,
+             .externalOutbound,
+             .externelRegularInbound,
+             .externalRegularOutbound:
+            return true
+        default:
+            return false
+        }
+    }
+
 }
 
 final class Transaction: Model {
 
-    private struct Constants {
+    struct Constants {
         static let idKey = "id"
         static let currencyKey = "currency"
         static let amountKey = "amount"

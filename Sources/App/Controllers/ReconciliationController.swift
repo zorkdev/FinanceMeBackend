@@ -11,8 +11,6 @@ final class ReconciliationController {
         for user in users {
             let endOfMonthBalance = try spendingBusinessLogic.calculateEndOfMonthBalance(for: user)
             print(endOfMonthBalance)
-            let balance = try spendingBusinessLogic.calculateCurrentBalance(for: user)
-            print(balance)
         }
 
         return Response(status: .ok)

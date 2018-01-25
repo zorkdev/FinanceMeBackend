@@ -2,9 +2,11 @@ import Vapor
 
 final class TransactionController: ResourceRepresentable {
 
+    private let transactionsBusinessLogic = TransactionsBusinessLogic()
+
     func index(_ req: Request) throws -> ResponseRepresentable {
         let user = try req.authUser()
-        let transactions = try Transaction.all().filter({ $0.userId == user.id })
+        let transactions = try transactionsBusinessLogic.getExternalTransactions(for: user)
         return try transactions.makeJSON()
     }
 

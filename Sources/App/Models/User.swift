@@ -9,8 +9,11 @@ final class User: Model {
         static let tokenKey = "token"
         static let nameKey = "name"
         static let paydayKey = "payday"
+        static let startDateKey = "startDate"
+        static let largeTransactionKey = "largeTransaction"
         static let endOfMonthBalanceKey = "endOfMonthBalance"
         static let spendingLimitKey = "spendingLimit"
+        static let allowanceKey = "allowance"
         static let sTokenKey = "sToken"
     }
 
@@ -20,6 +23,8 @@ final class User: Model {
 
     let name: String
     let payday: Int
+    let startDate: Date
+    let largeTransaction: Double
     let endOfMonthBalance: Double
     var sToken: String?
 
@@ -31,17 +36,20 @@ final class User: Model {
         return children()
     }
 
-    var spendingLimit: Double {
-        guard let transactions = try? self.transactions.all() else { return 0 }
-        return spendingBusinessLogic.calculateAmountSum(from: transactions)
+    var allowance: Double {
+        return (try? spendingBusinessLogic.calculateAllowance(for: self)) ?? 0
     }
 
     init(name: String,
          payday: Int,
+         startDate: Date,
+         largeTransaction: Double,
          endOfMonthBalance: Double,
          sToken: String?) {
         self.name = name
         self.payday = payday
+        self.startDate = startDate
+        self.largeTransaction = largeTransaction
         self.endOfMonthBalance = endOfMonthBalance
         self.sToken = sToken
     }
@@ -49,6 +57,8 @@ final class User: Model {
     init(row: Row) throws {
         name = try row.get(Constants.nameKey)
         payday = try row.get(Constants.paydayKey)
+        startDate = try row.get(Constants.startDateKey)
+        largeTransaction = try row.get(Constants.largeTransactionKey)
         endOfMonthBalance = try row.get(Constants.endOfMonthBalanceKey)
         sToken = try row.get(Constants.sTokenKey)
     }
@@ -57,6 +67,8 @@ final class User: Model {
         var row = Row()
         try row.set(Constants.nameKey, name)
         try row.set(Constants.paydayKey, payday)
+        try row.set(Constants.startDateKey, startDate)
+        try row.set(Constants.largeTransactionKey, largeTransaction)
         try row.set(Constants.endOfMonthBalanceKey, endOfMonthBalance)
         try row.set(Constants.sTokenKey, sToken)
         return row
@@ -71,6 +83,8 @@ extension User: Preparation {
             builder.id()
             builder.string(Constants.nameKey)
             builder.int(Constants.paydayKey)
+            builder.date(Constants.startDateKey)
+            builder.double(Constants.largeTransactionKey)
             builder.double(Constants.endOfMonthBalanceKey)
             builder.string(Constants.sTokenKey, optional: true)
         }
@@ -87,6 +101,8 @@ extension User: JSONConvertible {
     convenience init(json: JSON) throws {
         try self.init(name: json.get(Constants.nameKey),
                       payday: json.get(Constants.paydayKey),
+                      startDate: json.get(Constants.startDateKey),
+                      largeTransaction: json.get(Constants.largeTransactionKey),
                       endOfMonthBalance: json.get(Constants.endOfMonthBalanceKey),
                       sToken: nil)
     }
@@ -98,17 +114,19 @@ extension User: JSONConvertible {
         try json.set(User.tokenKey, tokenString)
         try json.set(Constants.nameKey, name)
         try json.set(Constants.paydayKey, payday)
+        try json.set(Constants.startDateKey, startDate)
+        try json.set(Constants.largeTransactionKey, largeTransaction)
         try json.set(Constants.endOfMonthBalanceKey, endOfMonthBalance)
-        try json.set(Constants.spendingLimitKey, spendingLimit)
+        try json.set(Constants.allowanceKey, allowance)
         return json
     }
 
 }
-
-extension User: ResponseRepresentable {}
 
 extension User: TokenAuthenticatable {
 
     public typealias TokenType = Token
 
 }
+
+extension User: ResponseRepresentable {}
