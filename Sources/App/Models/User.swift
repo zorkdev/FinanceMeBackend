@@ -74,6 +74,10 @@ extension User: Preparation {
             builder.double(Constants.endOfMonthBalanceKey)
             builder.string(Constants.sTokenKey)
         }
+
+        try? database.modify(self) { modifier in
+            modifier.string(Constants.sTokenKey)
+        }
     }
 
     static func revert(_ database: Database) throws {
