@@ -8,6 +8,10 @@ extension Date {
         return Calendar.autoupdatingCurrent
     }
 
+    var day: Int {
+        return calendar.component(.day, from: self)
+    }
+
     var isThisWeek: Bool {
         return calendar.isDate(self, equalTo: Date(), toGranularity: .weekOfYear)
     }
@@ -43,12 +47,14 @@ extension Date {
     }
 
     func add(day: Int) -> Date {
+        guard day != 0 else { return self }
         return calendar.date(byAdding: .day,
                              value: day,
                              to: self) ?? self
     }
 
     func add(month: Int) -> Date {
+        guard month != 0 else { return self }
         return calendar.date(byAdding: .month,
                              value: month,
                              to: self) ?? self
