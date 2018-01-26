@@ -16,13 +16,13 @@ final class SpendingBusinessLogic {
         let carryOver = try calculateCarryOverFromPreviousWeeks(for: user, limit: spendingLimit)
         let weeklyLimit = self.calculateWeeklyLimit(for: user, limit: spendingLimit, carryOver: carryOver)
         let remainingAllowance = weeklyLimit + spendingThisWeek + remainingTravel
-        print(remainingAllowance)
 
         return remainingAllowance
     }
 
     func calculateWeeklyLimit(for user: User, limit: Double, carryOver: Double) -> Double {
         let dailyLimit = limit / Double(Date().daysInMonth)
+        print("daysInMonth: \(Date().daysInMonth)")
         guard carryOver < 0 else { return dailyLimit * Double(Date.daysInWeek) }
 
         let now = Date()
@@ -30,6 +30,7 @@ final class SpendingBusinessLogic {
         let startOfWeek = now.startOfWeek
         let numberOfDays = Double(nextPayday.numberOfDays(from: startOfWeek))
         let newDailyLimit = dailyLimit + (carryOver / numberOfDays)
+        print("numberOfDays: \(numberOfDays)")
         let newWeeklyLimit = newDailyLimit * Double(Date.daysInWeek)
 
         return newWeeklyLimit
@@ -93,6 +94,7 @@ final class SpendingBusinessLogic {
 
         let spending = calculateAmountSum(from: transactions)
         let dailyLimit = limit / Double(Date().daysInMonth)
+        print("prevDaysInMonth: \(Date().daysInMonth)")
         let carryOver = dailyLimit * Double(daysSincePayday) + spending
 
         return carryOver < 0 ? carryOver : 0
@@ -113,6 +115,7 @@ final class SpendingBusinessLogic {
 
         let firstDate = transactions.first?.created.startOfDay ?? dayBefore
         let numberOfDays = Double(dayBefore.numberOfDays(from: firstDate))
+        print("travelNumberOfDays: \(numberOfDays)")
 
         let dailyTravelSpending = transactions
             .flatMap({ $0.amount })

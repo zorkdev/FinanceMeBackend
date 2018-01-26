@@ -2,13 +2,17 @@ import Vapor
 
 final class UserController {
 
+    private struct Constants {
+        static let allowanceKey = "testAllowance"
+    }
+
     private let spendingBusinessLogic = SpendingBusinessLogic()
 
     func showCurrentUser(_ req: Request) throws -> ResponseRepresentable {
         let user = try req.authUser()
         var json = try user.makeJSON()
         let allowance = try spendingBusinessLogic.calculateAllowance(for: user)
-        try json.set("testAllowance", allowance)
+        try json.set(Constants.allowanceKey, allowance)
         return json
     }
 
