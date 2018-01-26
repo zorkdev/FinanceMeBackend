@@ -3,7 +3,7 @@ import Vapor
 final class UserController {
 
     private struct Constants {
-        static let allowanceKey = "testAllowance"
+        static let allowanceKey = "allowance"
     }
 
     private let spendingBusinessLogic = SpendingBusinessLogic()

@@ -13,7 +13,6 @@ final class User: Model {
         static let largeTransactionKey = "largeTransaction"
         static let endOfMonthBalanceKey = "endOfMonthBalance"
         static let spendingLimitKey = "spendingLimit"
-        static let allowanceKey = "allowance"
         static let sTokenKey = "sToken"
     }
 
@@ -32,10 +31,6 @@ final class User: Model {
 
     var transactions: Children<User, Transaction> {
         return children()
-    }
-
-    var allowance: Double {
-        return 0
     }
 
     init(name: String,
@@ -115,7 +110,6 @@ extension User: JSONConvertible {
         try json.set(Constants.startDateKey, startDate)
         try json.set(Constants.largeTransactionKey, largeTransaction)
         try json.set(Constants.endOfMonthBalanceKey, endOfMonthBalance)
-        try json.set(Constants.allowanceKey, allowance)
         return json
     }
 
