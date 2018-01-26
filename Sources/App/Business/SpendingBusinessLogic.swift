@@ -16,6 +16,7 @@ final class SpendingBusinessLogic {
         let carryOver = try calculateCarryOverFromPreviousWeeks(for: user, limit: spendingLimit)
         let weeklyLimit = self.calculateWeeklyLimit(for: user, limit: spendingLimit, carryOver: carryOver)
         let remainingAllowance = weeklyLimit + spendingThisWeek + remainingTravel
+        print(remainingAllowance)
 
         return remainingAllowance
     }
