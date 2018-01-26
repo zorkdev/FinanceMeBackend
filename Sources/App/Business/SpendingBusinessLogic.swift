@@ -8,12 +8,19 @@ final class SpendingBusinessLogic {
 
     func calculateAllowance(for user: User) throws -> Double {
         try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: Date())
+        print("getTransactions")
         let spendingLimit = try calculateSpendingLimit(for: user)
+        print("spendinglimit")
         let spendingThisWeek = try calculateSpendingThisWeek(for: user)
+        print("spendingthisweek")
         let remainingTravel = try calculateRemainingTravelSpending(for: user)
+        print("travel")
         let carryOver = try calculateCarryOverFromPreviousWeeks(for: user, limit: spendingLimit)
+        print("carry")
         let weeklyLimit = self.calculateWeeklyLimit(for: user, limit: spendingLimit, carryOver: carryOver)
+        print("weekly")
         let remainingAllowance = weeklyLimit + spendingThisWeek + remainingTravel
+        print("allowance")
 
         return remainingAllowance
     }
