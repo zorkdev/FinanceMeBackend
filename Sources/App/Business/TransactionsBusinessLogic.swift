@@ -7,7 +7,7 @@ final class TransactionsBusinessLogic {
                                             to: Date? = nil) throws -> [Transaction] {
         let lastTransactionDate = try calculateLatestTransactionDate(for: user)
 
-        let from = from ?? Date.distantPast
+        let from = from ?? user.startDate
         let to = to ?? Date()
 
         var neededFrom = lastTransactionDate
@@ -85,7 +85,7 @@ final class TransactionsBusinessLogic {
             .sort(Transaction.Constants.createdKey, .descending)
             .limit(1)
             .first()?
-            .created ?? Date.distantPast
+            .created ?? user.startDate
     }
 
     private func fetchTransactions(for user: User, from: Date, to: Date) throws -> [Transaction] {
