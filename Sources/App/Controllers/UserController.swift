@@ -2,9 +2,14 @@ import Vapor
 
 final class UserController {
 
+    private let spendingBusinessLogic = SpendingBusinessLogic()
+
     func showCurrentUser(_ req: Request) throws -> ResponseRepresentable {
         let user = try req.authUser()
-        return user
+        var json = try user.makeJSON()
+        let allowance = try spendingBusinessLogic.calculateAllowance(for: user)
+        try json.set("testAllowance", allowance)
+        return json
     }
 
     func store(_ req: Request) throws -> ResponseRepresentable {

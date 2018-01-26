@@ -17,8 +17,6 @@ final class User: Model {
         static let sTokenKey = "sToken"
     }
 
-    private let spendingBusinessLogic = SpendingBusinessLogic()
-
     let storage = Storage()
 
     let name: String
@@ -37,7 +35,6 @@ final class User: Model {
     }
 
     var allowance: Double {
-        //return (try? spendingBusinessLogic.calculateAllowance(for: self)) ?? 0
         return 0
     }
 
