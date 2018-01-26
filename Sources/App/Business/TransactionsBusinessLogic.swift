@@ -5,8 +5,9 @@ final class TransactionsBusinessLogic {
     @discardableResult func getTransactions(user: User,
                                             from: Date? = nil,
                                             to: Date? = nil) throws -> [Transaction] {
+        print("lastTransactionDate")
         let lastTransactionDate = try calculateLatestTransactionDate(for: user)
-
+        print("dates")
         let from = from ?? user.startDate
         let to = to ?? Date()
 
@@ -20,14 +21,15 @@ final class TransactionsBusinessLogic {
             return try fetchTransactions(for: user, from: from, to: to)
         }
 
+        print("getTransactions")
         let transactions = try starlingTransactionsController.getTransactions(user: user, from: neededFrom, to: to)
-
+        print("save")
         for transaction in transactions {
-            guard transaction.created > neededFrom else { break }
+            guard transaction.created > neededFrom else { continue }
             transaction.userId = user.id
             try transaction.save()
         }
-
+        print("return")
         return try fetchTransactions(for: user, from: from, to: to)
     }
 
