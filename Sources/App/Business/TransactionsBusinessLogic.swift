@@ -76,10 +76,10 @@ final class TransactionsBusinessLogic {
                                  TransactionSource.externelRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externalRegularOutbound.rawValue)
+                                 TransactionSource.externalOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalInbound.rawValue)
             }
             .sort(Transaction.Constants.createdKey, .descending)
             .limit(1)
