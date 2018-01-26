@@ -37,7 +37,8 @@ final class User: Model {
     }
 
     var allowance: Double {
-        return (try? spendingBusinessLogic.calculateAllowance(for: self)) ?? 0
+        //return (try? spendingBusinessLogic.calculateAllowance(for: self)) ?? 0
+        return 0
     }
 
     init(name: String,

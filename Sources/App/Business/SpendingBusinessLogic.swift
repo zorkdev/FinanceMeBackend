@@ -9,7 +9,7 @@ final class SpendingBusinessLogic {
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
 
     func calculateAllowance(for user: User) throws -> Double {
-        //try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: Date())
+        try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: Date())
         let spendingLimit = try calculateSpendingLimit(for: user)
         let spendingThisWeek = try calculateSpendingThisWeek(for: user)
         let remainingTravel = try calculateRemainingTravelSpending(for: user)
