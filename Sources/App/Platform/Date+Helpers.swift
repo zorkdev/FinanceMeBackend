@@ -5,7 +5,7 @@ extension Date {
     static let daysInWeek = 7
 
     private var calendar: Calendar {
-        return Calendar.autoupdatingCurrent
+        return Calendar.current
     }
 
     var day: Int {
