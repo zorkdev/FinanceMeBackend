@@ -169,6 +169,10 @@ extension Transaction: JSONConvertible {
                       source: source,
                       balance: json.get(Constants.balanceKey),
                       user: nil)
+
+        if let id: Identifier = try json.get(Constants.idKey) {
+            self.id = id
+        }
     }
 
     func makeJSON() throws -> JSON {
