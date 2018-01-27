@@ -43,7 +43,7 @@ final class SpendingBusinessLogic {
             .and { group in
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, now.startOfWeek)
                 try group.filter(Transaction.Constants.createdKey, .lessThanOrEquals, now)
-                try group.filter(Transaction.Constants.amountKey, .lessThan, -user.largeTransaction)
+                try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
             }
             .all()
 
