@@ -63,7 +63,7 @@ final class SpendingBusinessLogic {
 
         let transactionsWithoutTravel = transactions
             .filter({ !($0.narrative == Constants.travelNarrative &&
-                $0.created < now.startOfDay) })
+                $0.created > now.startOfDay) })
 
         return calculateAmountSum(from: transactionsWithoutTravel)
     }
