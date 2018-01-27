@@ -86,10 +86,9 @@ final class SpendingBusinessLogic {
                                  TransactionSource.externelRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
                 try group.filter(Transaction.Constants.createdKey, .lessThan, to)
-                try group.or { orGroup in
-                    try group.filter(Transaction.Constants.amountKey, .lessThanOrEquals, -user.largeTransaction)
-                    try group.filter(Transaction.Constants.amountKey, .greaterThanOrEquals, user.largeTransaction)
-                }
+            }.or { group in
+                try group.filter(Transaction.Constants.amountKey, .lessThanOrEquals, -user.largeTransaction)
+                try group.filter(Transaction.Constants.amountKey, .greaterThanOrEquals, user.largeTransaction)
             }
             .all()
 
