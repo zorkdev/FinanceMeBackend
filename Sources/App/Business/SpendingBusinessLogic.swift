@@ -17,6 +17,18 @@ final class SpendingBusinessLogic {
         let weeklyLimit = self.calculateWeeklyLimit(for: user, limit: spendingLimit, carryOver: carryOver)
         let remainingAllowance = weeklyLimit + spendingThisWeek + remainingTravel
 
+        print(
+            """
+            Allowance
+            Limit: \(spendingLimit)
+            This week: \(spendingThisWeek)
+            Travel: \(remainingTravel)
+            Carry over: \(carryOver)
+            Weekly limit: \(weeklyLimit)
+            Remaining allowance: \(remainingAllowance)
+            """
+        )
+
         return remainingAllowance
     }
 
@@ -69,8 +81,12 @@ final class SpendingBusinessLogic {
         let largeTransactions = try user.transactions
             .makeQuery()
             .and { group in
-                try group.filter(Transaction.Constants.directionKey, .equals, TransactionDirection.outbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey, .notEquals, TransactionSource.externalRegularOutbound.rawValue)
+                try group.filter(Transaction.Constants.directionKey,
+                                 .equals,
+                                 TransactionDirection.outbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
                 try group.filter(Transaction.Constants.createdKey, .lessThan, to)
                 try group.filter(Transaction.Constants.amountKey, .lessThanOrEquals, -user.largeTransaction)
@@ -92,8 +108,12 @@ final class SpendingBusinessLogic {
         let transactions = try user.transactions
             .makeQuery()
             .and { group in
-                try group.filter(Transaction.Constants.sourceKey, .notEquals, TransactionSource.externalRegularOutbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey, .notEquals, TransactionSource.externelRegularInbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externalRegularOutbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externelRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, payday)
                 try group.filter(Transaction.Constants.createdKey, .lessThan, now.startOfWeek)
