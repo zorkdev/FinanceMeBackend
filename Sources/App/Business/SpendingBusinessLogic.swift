@@ -22,7 +22,6 @@ final class SpendingBusinessLogic {
 
     func calculateWeeklyLimit(for user: User, limit: Double, carryOver: Double) -> Double {
         let dailyLimit = limit / Double(Date().daysInMonth)
-        guard carryOver < 0 else { return dailyLimit * Double(Date.daysInWeek) }
 
         let now = Date()
         let nextPayday = now.next(day: user.payday, direction: .forward)
@@ -41,6 +40,12 @@ final class SpendingBusinessLogic {
         let transactions = try user.transactions
             .makeQuery()
             .and { group in
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externalRegularOutbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externelRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, now.startOfWeek)
                 try group.filter(Transaction.Constants.createdKey, .lessThanOrEquals, now)
                 try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
@@ -56,8 +61,7 @@ final class SpendingBusinessLogic {
 
     func calculateSpendingLimit(for user: User) throws -> Double {
         let now = Date()
-        let monthModifier = now.day > user.payday ? 1 : 0
-        let from = now.add(month: -1 + monthModifier).set(day: user.payday).startOfDay
+        let from = now.next(day: user.payday, direction: .backward)
         let to = now
 
         let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
@@ -65,6 +69,8 @@ final class SpendingBusinessLogic {
         let largeTransactions = try user.transactions
             .makeQuery()
             .and { group in
+                try group.filter(Transaction.Constants.directionKey, .equals, TransactionDirection.outbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey, .notEquals, TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
                 try group.filter(Transaction.Constants.createdKey, .lessThan, to)
                 try group.filter(Transaction.Constants.amountKey, .lessThanOrEquals, -user.largeTransaction)
@@ -86,6 +92,9 @@ final class SpendingBusinessLogic {
         let transactions = try user.transactions
             .makeQuery()
             .and { group in
+                try group.filter(Transaction.Constants.sourceKey, .notEquals, TransactionSource.externalRegularOutbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey, .notEquals, TransactionSource.externelRegularInbound.rawValue)
+                try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, payday)
                 try group.filter(Transaction.Constants.createdKey, .lessThan, now.startOfWeek)
             }
@@ -100,19 +109,18 @@ final class SpendingBusinessLogic {
 
     private func calculateRemainingTravelSpending(for user: User) throws -> Double {
         let today = Date().startOfDay
-        let dayBefore = today.add(day: -1)
 
         let transactions = try user.transactions
             .makeQuery()
             .and { group in
                 try group.filter(Transaction.Constants.narrativeKey, .equals, Constants.travelNarrative)
-                try group.filter(Transaction.Constants.createdKey, .lessThan, dayBefore)
+                try group.filter(Transaction.Constants.createdKey, .lessThan, today)
             }
             .sort(Transaction.Constants.createdKey, .ascending)
             .all()
 
-        let firstDate = transactions.first?.created.startOfDay ?? dayBefore
-        let numberOfDays = Double(dayBefore.numberOfDays(from: firstDate))
+        let firstDate = transactions.first?.created.startOfDay ?? today
+        let numberOfDays = Double(today.numberOfDays(from: firstDate))
         guard numberOfDays != 0 else { return 0 }
 
         let dailyTravelSpending = transactions
