@@ -92,7 +92,16 @@ final class SpendingBusinessLogic {
             }
             .all()
 
-        let carryOver = user.endOfMonthBalance < 0 ? user.endOfMonthBalance : 0
+        var carryOver = 0.0
+
+        if let lastBalance = try user.endOfMonthSummaries
+            .makeQuery()
+            .sort(EndOfMonthSummary.Constants.createdKey, .descending)
+            .limit(1)
+            .first(),
+            lastBalance.balance < 0 {
+            carryOver = lastBalance.balance
+        }
 
         return calculateAmountSum(from: regularTransactions + largeTransactions) + carryOver
     }
@@ -152,37 +161,54 @@ final class SpendingBusinessLogic {
         return remainingDays * dailyTravelSpending
     }
 
-    func calculateCurrentBalance(for user: User) throws -> Double {
-        let now = Date()
-        let from = now.next(day: user.payday, direction: .backward)
-        let to = now
+    func calculateEndOfMonthBalance(for user: User) throws {
+        let lastBalance = try user.endOfMonthSummaries
+            .makeQuery()
+            .sort(EndOfMonthSummary.Constants.createdKey, .descending)
+            .limit(1)
+            .first()
 
-        let balance = try calculateBalance(for: user,
-                                           from: from,
-                                           to: to)
+        let to: Date
+        let from: Date
 
-        return balance + user.endOfMonthBalance
-    }
+        if let lastBalance = lastBalance {
+            guard lastBalance.created.isThisMonth == false else { return }
+            from = lastBalance.created
+            to = from.next(day: user.payday, direction: .forward)
+        } else {
+            to = Date().next(day: user.payday, direction: .backward)
+            from = to.next(day: user.payday, direction: .backward)
+        }
 
-    func calculateEndOfMonthBalance(for user: User) throws -> Double {
-        let now = Date()
-        let to = now.next(day: user.payday, direction: .backward)
-        let from = to.add(month: -1)
+        try transactionsBusinessLogic.getTransactions(user: user,
+                                                      from: from,
+                                                      to: to)
+        let transactions = try user.transactions
+            .makeQuery()
+            .and { group in
+                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
+                try group.filter(Transaction.Constants.createdKey, .lessThan, to)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externelRegularInbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externalRegularOutbound.rawValue)
+            }
+            .all()
 
-        let balance = try calculateBalance(for: user,
-                                           from: from,
-                                           to: to)
+        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
+        var balance = calculateAmountSum(from: transactions + regularTransactions)
 
-        return balance + user.endOfMonthBalance
-    }
+        if let lastBalance = lastBalance,
+            lastBalance.balance < 0 {
+            balance += lastBalance.balance
+        }
 
-    private func calculateBalance(for user: User, from: Date, to: Date) throws -> Double {
-        let transactions = try transactionsBusinessLogic.getTransactions(user: user,
-                                                                         from: from,
-                                                                         to: to)
-        let balance = calculateAmountSum(from: transactions)
-
-        return balance
+        let endOfMonthSummary = EndOfMonthSummary(created: to,
+                                                  balance: balance,
+                                                  user: user)
+        try endOfMonthSummary.save()
     }
 
     func calculateAmountSum(from transactions: [Transaction]) -> Double {

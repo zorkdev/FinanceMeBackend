@@ -78,8 +78,7 @@ final class Transaction: Model {
          narrative: String,
          source: TransactionSource,
          balance: Double,
-         user: User?
-        ) {
+         user: User?) {
         self.currency = currency
         self.amount = amount
         self.direction = direction

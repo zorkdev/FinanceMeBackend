@@ -21,6 +21,7 @@ extension Config {
         preparations.append(User.self)
         preparations.append(Token.self)
         preparations.append(Transaction.self)
+        preparations.append(EndOfMonthSummary.self)
     }
 
     private func setupMiddlewares() {

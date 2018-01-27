@@ -11,8 +11,6 @@ final class User: Model {
         static let paydayKey = "payday"
         static let startDateKey = "startDate"
         static let largeTransactionKey = "largeTransaction"
-        static let endOfMonthBalanceKey = "endOfMonthBalance"
-        static let spendingLimitKey = "spendingLimit"
         static let sTokenKey = "sToken"
     }
 
@@ -22,7 +20,6 @@ final class User: Model {
     let payday: Int
     let startDate: Date
     let largeTransaction: Double
-    let endOfMonthBalance: Double
     var sToken: String?
 
     var token: Children<User, Token> {
@@ -33,17 +30,19 @@ final class User: Model {
         return children()
     }
 
+    var endOfMonthSummaries: Children<User, EndOfMonthSummary> {
+        return children()
+    }
+
     init(name: String,
          payday: Int,
          startDate: Date,
          largeTransaction: Double,
-         endOfMonthBalance: Double,
          sToken: String?) {
         self.name = name
         self.payday = payday
         self.startDate = startDate
         self.largeTransaction = largeTransaction
-        self.endOfMonthBalance = endOfMonthBalance
         self.sToken = sToken
     }
 
@@ -52,7 +51,6 @@ final class User: Model {
         payday = try row.get(Constants.paydayKey)
         startDate = try row.get(Constants.startDateKey)
         largeTransaction = try row.get(Constants.largeTransactionKey)
-        endOfMonthBalance = try row.get(Constants.endOfMonthBalanceKey)
         sToken = try row.get(Constants.sTokenKey)
     }
 
@@ -62,7 +60,6 @@ final class User: Model {
         try row.set(Constants.paydayKey, payday)
         try row.set(Constants.startDateKey, startDate)
         try row.set(Constants.largeTransactionKey, largeTransaction)
-        try row.set(Constants.endOfMonthBalanceKey, endOfMonthBalance)
         try row.set(Constants.sTokenKey, sToken)
         return row
     }
@@ -78,7 +75,6 @@ extension User: Preparation {
             builder.int(Constants.paydayKey)
             builder.date(Constants.startDateKey)
             builder.double(Constants.largeTransactionKey)
-            builder.double(Constants.endOfMonthBalanceKey)
             builder.string(Constants.sTokenKey, optional: true)
         }
     }
@@ -96,7 +92,6 @@ extension User: JSONConvertible {
                       payday: json.get(Constants.paydayKey),
                       startDate: json.get(Constants.startDateKey),
                       largeTransaction: json.get(Constants.largeTransactionKey),
-                      endOfMonthBalance: json.get(Constants.endOfMonthBalanceKey),
                       sToken: nil)
     }
 
@@ -109,7 +104,6 @@ extension User: JSONConvertible {
         try json.set(Constants.paydayKey, payday)
         try json.set(Constants.startDateKey, startDate)
         try json.set(Constants.largeTransactionKey, largeTransaction)
-        try json.set(Constants.endOfMonthBalanceKey, endOfMonthBalance)
         return json
     }
 
