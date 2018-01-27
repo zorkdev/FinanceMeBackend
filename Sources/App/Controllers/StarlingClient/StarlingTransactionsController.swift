@@ -38,6 +38,7 @@ final class StarlingTransactionsController {
 
         for item in transactionsArray {
             let transaction = try Transaction(json: item)
+            guard try Transaction.find(transaction.id) == nil else { continue }
             transactions.append(transaction)
         }
 
