@@ -56,8 +56,10 @@ final class SpendingBusinessLogic {
                                  TransactionSource.externelRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, now.startOfWeek)
                 try group.filter(Transaction.Constants.createdKey, .lessThanOrEquals, now)
-                try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
-                try group.filter(Transaction.Constants.amountKey, .lessThan, user.largeTransaction)
+                try group.or { orGroup in
+                    try group.filter(Transaction.Constants.amountKey, .lessThanOrEquals, -user.largeTransaction)
+                    try group.filter(Transaction.Constants.amountKey, .greaterThanOrEquals, user.largeTransaction)
+                }
             }
             .all()
 
@@ -86,8 +88,10 @@ final class SpendingBusinessLogic {
                                  TransactionSource.externelRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
                 try group.filter(Transaction.Constants.createdKey, .lessThan, to)
-                try group.filter(Transaction.Constants.amountKey, .lessThanOrEquals, -user.largeTransaction)
-                try group.filter(Transaction.Constants.amountKey, .greaterThanOrEquals, user.largeTransaction)
+                try group.or { orGroup in
+                    try group.filter(Transaction.Constants.amountKey, .lessThanOrEquals, -user.largeTransaction)
+                    try group.filter(Transaction.Constants.amountKey, .greaterThanOrEquals, user.largeTransaction)
+                }
             }
             .all()
 
@@ -112,8 +116,10 @@ final class SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.externelRegularInbound.rawValue)
-                try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
-                try group.filter(Transaction.Constants.amountKey, .lessThan, user.largeTransaction)
+                try group.or { orGroup in
+                    try group.filter(Transaction.Constants.amountKey, .lessThanOrEquals, -user.largeTransaction)
+                    try group.filter(Transaction.Constants.amountKey, .greaterThanOrEquals, user.largeTransaction)
+                }
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, payday)
                 try group.filter(Transaction.Constants.createdKey, .lessThan, startOfWeek)
             }
