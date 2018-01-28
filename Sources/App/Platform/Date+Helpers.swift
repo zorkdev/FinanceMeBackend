@@ -1,12 +1,14 @@
 import Foundation
 
+private let calendar: Calendar = {
+    var calendar = Calendar.current
+    calendar.locale = Locale(identifier: "en_GB")
+    return calendar
+}()
+
 extension Date {
 
     static let daysInWeek = 7
-
-    private var calendar: Calendar {
-        return Calendar.current
-    }
 
     var day: Int {
         return calendar.component(.day, from: self)
