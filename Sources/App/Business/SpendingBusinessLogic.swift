@@ -29,11 +29,12 @@ final class SpendingBusinessLogic {
     }
 
     func calculateWeeklyLimit(for user: User, limit: Double, carryOver: Double) -> Double {
-        let dailyLimit = limit / Double(Date().daysInMonth)
-
         let now = Date()
+        let previousPayday = now.next(day: user.payday, direction: .backward)
         let nextPayday = now.next(day: user.payday, direction: .forward)
         let startOfWeek = now.startOfWeek
+        let daysInMonth = nextPayday.numberOfDays(from: previousPayday)
+        let dailyLimit = limit / Double(daysInMonth)
         let numberOfDays = Double(nextPayday.numberOfDays(from: startOfWeek))
         guard numberOfDays != 0 else { return 0 }
         let newDailyLimit = dailyLimit + (carryOver / numberOfDays)
