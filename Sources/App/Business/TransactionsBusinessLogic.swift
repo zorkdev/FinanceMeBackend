@@ -63,6 +63,11 @@ final class TransactionsBusinessLogic {
             }
             .all()
     }
+}
+
+// MARK: - Private methods
+
+extension TransactionsBusinessLogic {
 
     private func calculateLatestTransactionDate(for user: User) throws -> Date {
         return try user.transactions

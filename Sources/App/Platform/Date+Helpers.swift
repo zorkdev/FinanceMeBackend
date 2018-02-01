@@ -38,14 +38,6 @@ extension Date {
                              to: startOfWeek) ?? self
     }
 
-    var daysInMonth: Int {
-        return calendar.range(of: .day, in: .month, for: self)?.count ?? 0
-    }
-
-    var weeksInMonth: Double {
-        return Double(daysInMonth) / Double(Date.daysInWeek)
-    }
-
     func set(day: Int) -> Date {
         var components = calendar.dateComponents([.year, .month], from: self)
         components.day = day

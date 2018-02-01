@@ -8,6 +8,58 @@ final class SpendingBusinessLogic {
 
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
 
+    func calculateEndOfMonthBalance(for user: User) throws {
+        let lastBalance = try user.endOfMonthSummaries
+            .makeQuery()
+            .sort(EndOfMonthSummary.Constants.createdKey, .descending)
+            .limit(1)
+            .first()
+
+        let to: Date
+        let from: Date
+
+        if let lastBalance = lastBalance {
+            guard lastBalance.created.isThisMonth == false else { return }
+            from = lastBalance.created
+            to = from.next(day: user.payday, direction: .forward)
+        } else {
+            to = Date().next(day: user.payday, direction: .backward)
+            from = to.next(day: user.payday, direction: .backward)
+        }
+
+        try transactionsBusinessLogic.getTransactions(user: user, from: from, to: to)
+
+        let transactions = try user.transactions
+            .makeQuery()
+            .and { group in
+                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
+                try group.filter(Transaction.Constants.createdKey, .lessThan, to)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externelRegularInbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externalRegularOutbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.stripeFunding.rawValue)
+            }
+            .all()
+
+        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
+        var balance = calculateAmountSum(from: transactions + regularTransactions)
+
+        if let lastBalance = lastBalance,
+            lastBalance.balance < 0 {
+            balance += lastBalance.balance
+        }
+
+        let endOfMonthSummary = EndOfMonthSummary(created: to,
+                                                  balance: balance,
+                                                  user: user)
+        try endOfMonthSummary.save()
+    }
+
     func calculateAllowance(for user: User) throws -> Double {
         try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: Date())
         let spendingLimit = try calculateSpendingLimit(for: user)
@@ -27,8 +79,13 @@ final class SpendingBusinessLogic {
 
         return remainingAllowance
     }
+}
 
-    func calculateWeeklyLimit(for user: User, limit: Double, carryOver: Double) -> Double {
+// MARK: - Private methods
+
+extension SpendingBusinessLogic {
+
+    private func calculateWeeklyLimit(for user: User, limit: Double, carryOver: Double) -> Double {
         let now = Date()
         let previousPayday = now.next(day: user.payday, direction: .backward)
         let nextPayday = now.next(day: user.payday, direction: .forward)
@@ -43,7 +100,7 @@ final class SpendingBusinessLogic {
         return newWeeklyLimit
     }
 
-    func calculateSpendingThisWeek(for user: User) throws -> Double {
+    private func calculateSpendingThisWeek(for user: User) throws -> Double {
         let now = Date()
 
         let transactions = try user.transactions
@@ -55,6 +112,9 @@ final class SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.externelRegularInbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.stripeFunding.rawValue)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, now.startOfWeek)
                 try group.filter(Transaction.Constants.createdKey, .lessThanOrEquals, now)
                 try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
@@ -69,7 +129,7 @@ final class SpendingBusinessLogic {
         return calculateAmountSum(from: transactionsWithoutTravel)
     }
 
-    func calculateSpendingLimit(for user: User) throws -> Double {
+    private func calculateSpendingLimit(for user: User) throws -> Double {
         let now = Date()
         let from = now.next(day: user.payday, direction: .backward)
         let to = now
@@ -85,6 +145,9 @@ final class SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.externelRegularInbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.stripeFunding.rawValue)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
                 try group.filter(Transaction.Constants.createdKey, .lessThan, to)
             }.or { group in
@@ -108,11 +171,13 @@ final class SpendingBusinessLogic {
     }
 
     private func calculateCarryOverFromPreviousWeeks(for user: User, limit: Double) throws -> Double {
-        let startOfWeek = Date().startOfWeek
-        let payday = Date().next(day: user.payday,
-                                 direction: .backward)
+        let now = Date()
+        let startOfWeek = now.startOfWeek
+        let nextPayday = now.next(day: user.payday, direction: .forward)
+        let payday = now.next(day: user.payday, direction: .backward)
         guard payday.isThisWeek == false else { return 0 }
         let daysSincePayday = startOfWeek.numberOfDays(from: payday)
+        let daysInMonth = nextPayday.numberOfDays(from: payday)
 
         let transactions = try user.transactions
             .makeQuery()
@@ -123,6 +188,9 @@ final class SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.externelRegularInbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.stripeFunding.rawValue)
                 try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
                 try group.filter(Transaction.Constants.amountKey, .lessThan, user.largeTransaction)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, payday)
@@ -131,7 +199,7 @@ final class SpendingBusinessLogic {
             .all()
 
         let spending = calculateAmountSum(from: transactions)
-        let dailyLimit = limit / Double(Date().daysInMonth)
+        let dailyLimit = limit / Double(daysInMonth)
         let carryOver = dailyLimit * Double(daysSincePayday) + spending
 
         return carryOver < 0 ? carryOver : 0
@@ -162,59 +230,8 @@ final class SpendingBusinessLogic {
         return remainingDays * dailyTravelSpending
     }
 
-    func calculateEndOfMonthBalance(for user: User) throws {
-        let lastBalance = try user.endOfMonthSummaries
-            .makeQuery()
-            .sort(EndOfMonthSummary.Constants.createdKey, .descending)
-            .limit(1)
-            .first()
-
-        let to: Date
-        let from: Date
-
-        if let lastBalance = lastBalance {
-            guard lastBalance.created.isThisMonth == false else { return }
-            from = lastBalance.created
-            to = from.next(day: user.payday, direction: .forward)
-        } else {
-            to = Date().next(day: user.payday, direction: .backward)
-            from = to.next(day: user.payday, direction: .backward)
-        }
-
-        try transactionsBusinessLogic.getTransactions(user: user,
-                                                      from: from,
-                                                      to: to)
-        let transactions = try user.transactions
-            .makeQuery()
-            .and { group in
-                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
-                try group.filter(Transaction.Constants.createdKey, .lessThan, to)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularOutbound.rawValue)
-            }
-            .all()
-
-        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
-        var balance = calculateAmountSum(from: transactions + regularTransactions)
-
-        if let lastBalance = lastBalance,
-            lastBalance.balance < 0 {
-            balance += lastBalance.balance
-        }
-
-        let endOfMonthSummary = EndOfMonthSummary(created: to,
-                                                  balance: balance,
-                                                  user: user)
-        try endOfMonthSummary.save()
-    }
-
-    func calculateAmountSum(from transactions: [Transaction]) -> Double {
+    private func calculateAmountSum(from transactions: [Transaction]) -> Double {
         return transactions
-            .filter({ $0.source != .stripeFunding })
             .flatMap({ $0.amount })
             .reduce(0, +)
     }
