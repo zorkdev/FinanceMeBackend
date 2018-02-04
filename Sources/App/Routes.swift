@@ -10,6 +10,7 @@ enum Routes: String {
     case usersMe = "users/me"
     case transactions = "transactions"
     case reconcile = "reconcile"
+    case endOfMonthSummaries = "endOfMonthSummaries"
 
 }
 
@@ -31,5 +32,8 @@ extension Droplet {
 
         let reconciliationController = ReconciliationController()
         reconciliationController.addRoutes(to: apiGroup)
+
+        let endOfMonthSummaryController = EndOfMonthSummaryController()
+        try endOfMonthSummaryController.addRoutes(to: tokenGroup)
     }
 }
