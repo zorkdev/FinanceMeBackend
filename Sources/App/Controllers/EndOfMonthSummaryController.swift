@@ -2,16 +2,21 @@ import Vapor
 
 final class EndOfMonthSummaryController: ResourceRepresentable {
 
+    private struct Constants {
+        static let currentMonthSummaryKey = "currentMonthSummary"
+        static let endOfMonthSummariesKey = "endOfMonthSummaries"
+    }
+
     private let spendingBusinessLogic = SpendingBusinessLogic()
 
     func index(_ req: Request) throws -> ResponseRepresentable {
         let user = try req.authUser()
-        let date = Date().next(day: user.payday, direction: .forward)
-        let monthlyAllowance = try spendingBusinessLogic.calculateMonthlyAllowance(for: user)
-        let summary = EndOfMonthSummary(created: date, balance: monthlyAllowance, user: nil)
-        var endOfMonthSummaries = try user.endOfMonthSummaries.all()
-        endOfMonthSummaries.append(summary)
-        return try endOfMonthSummaries.makeJSON()
+        let currentMonthSummary = try spendingBusinessLogic.calculateCurrentMonthSummary(for: user)
+        let endOfMonthSummaries = try user.endOfMonthSummaries.all()
+        var json = JSON()
+        try json.set(Constants.currentMonthSummaryKey, currentMonthSummary)
+        try json.set(Constants.endOfMonthSummariesKey, endOfMonthSummaries)
+        return json
     }
 
     func makeResource() -> Resource<Transaction> {

@@ -80,21 +80,37 @@ final class SpendingBusinessLogic {
         return remainingAllowance
     }
 
-    func calculateMonthlyAllowance(for user: User) throws -> Double {
-        try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: Date())
+    func calculateCurrentMonthSummary(for user: User) throws -> CurrentMonthSummary {
+        let now = Date()
+        let payday = now.next(day: user.payday, direction: .backward)
+        let nextPayday = now.next(day: user.payday, direction: .forward)
+
+        try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: now)
         let spendingLimit = try calculateSpendingLimit(for: user)
         let spendingThisMonth = try calculateSpendingThisMonth(for: user)
         let remainingTravel = try calculateRemainingTravelSpendingThisMonth(for: user)
-        let remainingAllowance = spendingLimit + spendingThisMonth + remainingTravel
+        let allowance = spendingLimit + spendingThisMonth + remainingTravel
+
+        let numberOfDays = now.numberOfDays(from: payday)
+        let dailySpending = spendingThisMonth / Double(numberOfDays)
+        let remainingDays = Double(nextPayday.numberOfDays(from: now))
+        let forecast = spendingLimit + spendingThisMonth + dailySpending * remainingDays
 
         print("Monthly allowance")
         print("Limit: \(spendingLimit)")
         print("This month: \(spendingThisMonth)")
         print("Travel: \(remainingTravel)")
-        print("Remaining allowance: \(remainingAllowance)")
+        print("Remaining allowance: \(allowance)")
 
-        return remainingAllowance
+        print("Monthly forecast")
+        print("Daily spending: \(dailySpending)")
+        print("Forecast: \(forecast)")
+
+        let currentmonthSummary = CurrentMonthSummary(allowance: allowance,
+                                                      forecast: forecast)
+        return currentmonthSummary
     }
+
 }
 
 // MARK: - Private methods
