@@ -64,7 +64,7 @@ final class SpendingBusinessLogic {
         try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: Date())
         let spendingLimit = try calculateSpendingLimit(for: user)
         let spendingThisWeek = try calculateSpendingThisWeek(for: user)
-        let remainingTravel = try calculateRemainingTravelSpending(for: user)
+        let remainingTravel = try calculateRemainingTravelSpendingThisWeek(for: user)
         let carryOver = try calculateCarryOverFromPreviousWeeks(for: user, limit: spendingLimit)
         let weeklyLimit = self.calculateWeeklyLimit(for: user, limit: spendingLimit, carryOver: carryOver)
         let remainingAllowance = weeklyLimit + spendingThisWeek + remainingTravel
@@ -75,6 +75,22 @@ final class SpendingBusinessLogic {
         print("Travel: \(remainingTravel)")
         print("Carry over: \(carryOver)")
         print("Weekly limit: \(weeklyLimit)")
+        print("Remaining allowance: \(remainingAllowance)")
+
+        return remainingAllowance
+    }
+
+    func calculateMonthlyAllowance(for user: User) throws -> Double {
+        try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: Date())
+        let spendingLimit = try calculateSpendingLimit(for: user)
+        let spendingThisMonth = try calculateSpendingThisMonth(for: user)
+        let remainingTravel = try calculateRemainingTravelSpendingThisMonth(for: user)
+        let remainingAllowance = spendingLimit + spendingThisMonth + remainingTravel
+
+        print("Monthly allowance")
+        print("Limit: \(spendingLimit)")
+        print("This month: \(spendingThisMonth)")
+        print("Travel: \(remainingTravel)")
         print("Remaining allowance: \(remainingAllowance)")
 
         return remainingAllowance
@@ -101,6 +117,20 @@ extension SpendingBusinessLogic {
     }
 
     private func calculateSpendingThisWeek(for user: User) throws -> Double {
+        let from = Date().startOfWeek
+        let spending = try calculateSpending(for: user, from: from)
+
+        return spending
+    }
+
+    private func calculateSpendingThisMonth(for user: User) throws -> Double {
+        let from = Date().next(day: user.payday, direction: .backward)
+        let spending = try calculateSpending(for: user, from: from)
+
+        return spending
+    }
+
+    private func calculateSpending(for user: User, from: Date) throws -> Double {
         let now = Date()
 
         let transactions = try user.transactions
@@ -115,7 +145,7 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
-                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, now.startOfWeek)
+                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
                 try group.filter(Transaction.Constants.createdKey, .lessThanOrEquals, now)
                 try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
                 try group.filter(Transaction.Constants.amountKey, .lessThan, user.largeTransaction)
@@ -205,7 +235,24 @@ extension SpendingBusinessLogic {
         return carryOver < 0 ? carryOver : 0
     }
 
-    private func calculateRemainingTravelSpending(for user: User) throws -> Double {
+    private func calculateRemainingTravelSpendingThisWeek(for user: User) throws -> Double {
+        let today = Date()
+        let remainingDays = Double(today.endOfWeek.numberOfDays(from: today))
+        let dailySpending = try calculateDailyTravelSpending(for: user)
+
+        return remainingDays * dailySpending
+    }
+
+    private func calculateRemainingTravelSpendingThisMonth(for user: User) throws -> Double {
+        let today = Date()
+        let payday = today.next(day: user.payday, direction: .forward)
+        let remainingDays = Double(payday.numberOfDays(from: today))
+        let dailySpending = try calculateDailyTravelSpending(for: user)
+
+        return remainingDays * dailySpending
+    }
+
+    private func calculateDailyTravelSpending(for user: User) throws -> Double {
         let today = Date().startOfDay
 
         let transactions = try user.transactions
@@ -225,9 +272,7 @@ extension SpendingBusinessLogic {
             .flatMap({ $0.amount })
             .reduce(0, +) / numberOfDays
 
-        let remainingDays = Double(today.endOfWeek.numberOfDays(from: today))
-
-        return remainingDays * dailyTravelSpending
+        return dailyTravelSpending
     }
 
     private func calculateAmountSum(from transactions: [Transaction]) -> Double {
