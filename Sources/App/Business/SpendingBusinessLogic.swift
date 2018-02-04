@@ -19,7 +19,7 @@ final class SpendingBusinessLogic {
         let from: Date
 
         if let lastBalance = lastBalance {
-            guard lastBalance.created.isThisMonth == false else { return }
+            guard lastBalance.created != Date().next(day: user.payday, direction: .backward) else { return }
             from = lastBalance.created
             to = from.next(day: user.payday, direction: .forward)
         } else {
