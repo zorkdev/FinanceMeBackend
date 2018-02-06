@@ -30,6 +30,40 @@ final class TransactionsBusinessLogic {
         return try fetchTransactions(for: user, from: from, to: to)
     }
 
+    func updateTransactions(user: User) throws {
+        let from = user.startDate
+        let to = Date()
+
+        try deleteStarlingTransactions(for: user)
+
+        let transactions = try starlingTransactionsController.getTransactions(user: user, from: from, to: to)
+
+        for transaction in transactions {
+            transaction.userId = user.id
+            try transaction.save()
+        }
+    }
+
+    func deleteStarlingTransactions(for user: User) throws {
+        return try user.transactions
+            .makeQuery()
+            .and { group in
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externalRegularOutbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externelRegularInbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externalOutbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externalInbound.rawValue)
+            }
+            .delete()
+    }
+
     func getRegularTransactions(for user: User) throws -> [Transaction] {
         return try user.transactions
             .makeQuery()
