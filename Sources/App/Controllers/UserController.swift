@@ -32,7 +32,10 @@ final class UserController {
         user.payday = updatedUser.payday
         user.startDate = updatedUser.startDate
         try user.save()
-        return user
+        var json = try user.makeJSON()
+        let allowance = try spendingBusinessLogic.calculateAllowance(for: user)
+        try json.set(Constants.allowanceKey, allowance)
+        return json
     }
 
     func addPublicRoutes(to group: RouteBuilder) {
