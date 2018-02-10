@@ -98,8 +98,6 @@ extension User: JSONConvertible {
     func makeJSON() throws -> JSON {
         var json = JSON()
         try json.set(User.idKey, id)
-        let tokenString = try token.first()?.token
-        try json.set(User.tokenKey, tokenString)
         try json.set(Constants.nameKey, name)
         try json.set(Constants.paydayKey, payday)
         try json.set(Constants.startDateKey, startDate)
