@@ -24,12 +24,24 @@ final class UserController {
         return user
     }
 
+    func updateCurrentUser(_ req: Request) throws -> ResponseRepresentable {
+        let user = try req.authUser()
+        let updatedUser = try req.user()
+        user.name = updatedUser.name
+        user.largeTransaction = updatedUser.largeTransaction
+        user.payday = updatedUser.payday
+        user.startDate = updatedUser.startDate
+        try user.save()
+        return user
+    }
+
     func addPublicRoutes(to group: RouteBuilder) {
         group.add(.post, Routes.users.rawValue, value: store)
     }
 
     func addRoutes(to group: RouteBuilder) {
         group.add(.get, Routes.usersMe.rawValue, value: showCurrentUser)
+        group.add(.patch, Routes.usersMe.rawValue, value: updateCurrentUser)
     }
 
 }

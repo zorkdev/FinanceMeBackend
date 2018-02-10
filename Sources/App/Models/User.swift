@@ -16,10 +16,10 @@ final class User: Model {
 
     let storage = Storage()
 
-    let name: String
-    let payday: Int
-    let startDate: Date
-    let largeTransaction: Double
+    var name: String
+    var payday: Int
+    var startDate: Date
+    var largeTransaction: Double
     var sToken: String?
 
     var token: Children<User, Token> {
