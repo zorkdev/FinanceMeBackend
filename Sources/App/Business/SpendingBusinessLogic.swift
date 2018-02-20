@@ -92,7 +92,7 @@ final class SpendingBusinessLogic {
         let allowance = spendingLimit + spendingThisMonth + remainingTravel
 
         let numberOfDays = now.numberOfDays(from: payday)
-        let dailySpending = spendingThisMonth / Double(numberOfDays)
+        let dailySpending = numberOfDays == 0 ? 0 : spendingThisMonth / Double(numberOfDays)
         let remainingDays = Double(nextPayday.numberOfDays(from: now))
         let forecast = spendingLimit + spendingThisMonth + dailySpending * remainingDays
 
