@@ -82,19 +82,17 @@ final class SpendingBusinessLogic {
 
     func calculateCurrentMonthSummary(for user: User) throws -> CurrentMonthSummary {
         let now = Date()
-        let payday = now.next(day: user.payday, direction: .backward)
         let nextPayday = now.next(day: user.payday, direction: .forward)
 
         try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: now)
         let spendingLimit = try calculateSpendingLimit(for: user)
         let spendingThisMonth = try calculateSpendingThisMonth(for: user)
+        let dailySpendingAverage = try calculateDailySpendingAverage(for: user)
         let remainingTravel = try calculateRemainingTravelSpendingThisMonth(for: user)
         let allowance = spendingLimit + spendingThisMonth + remainingTravel
 
-        let numberOfDays = now.numberOfDays(from: payday)
-        let dailySpending = numberOfDays == 0 ? 0 : spendingThisMonth / Double(numberOfDays)
         let remainingDays = Double(nextPayday.numberOfDays(from: now))
-        let forecast = spendingLimit + spendingThisMonth + dailySpending * remainingDays
+        let forecast = spendingLimit + spendingThisMonth + dailySpendingAverage * remainingDays
 
         print("Monthly allowance")
         print("Limit: \(spendingLimit)")
@@ -103,7 +101,7 @@ final class SpendingBusinessLogic {
         print("Remaining allowance: \(allowance)")
 
         print("Monthly forecast")
-        print("Daily spending: \(dailySpending)")
+        print("Daily spending: \(dailySpendingAverage)")
         print("Forecast: \(forecast)")
 
         let currentmonthSummary = CurrentMonthSummary(allowance: allowance,
@@ -121,13 +119,15 @@ extension SpendingBusinessLogic {
         let now = Date()
         let previousPayday = now.next(day: user.payday, direction: .backward)
         let nextPayday = now.next(day: user.payday, direction: .forward)
+        let daysUntilPayday = nextPayday.numberOfDays(from: now.startOfDay)
+        let remainingDays = min(Date.daysInWeek, daysUntilPayday)
         let startOfWeek = now.startOfWeek
         let daysInMonth = nextPayday.numberOfDays(from: previousPayday)
         let dailyLimit = limit / Double(daysInMonth)
         let numberOfDays = Double(nextPayday.numberOfDays(from: startOfWeek))
         guard numberOfDays != 0 else { return 0 }
         let newDailyLimit = dailyLimit + (carryOver / numberOfDays)
-        let newWeeklyLimit = newDailyLimit * Double(Date.daysInWeek)
+        let newWeeklyLimit = newDailyLimit * Double(remainingDays)
 
         return newWeeklyLimit
     }
@@ -251,12 +251,39 @@ extension SpendingBusinessLogic {
         return carryOver < 0 ? carryOver : 0
     }
 
+    private func calculateDailySpendingAverage(for user: User) throws -> Double {
+        let transactions = try user.transactions
+            .makeQuery()
+            .and { group in
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externalRegularOutbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externelRegularInbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.stripeFunding.rawValue)
+                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, user.startDate)
+            }
+            .all()
+
+        var numberOfDays = Date().numberOfDays(from: user.startDate)
+        numberOfDays = numberOfDays == 0 ? 0 : numberOfDays
+        let amountSum = calculateAmountSum(from: transactions)
+
+        return amountSum / Double(numberOfDays)
+    }
+
     private func calculateRemainingTravelSpendingThisWeek(for user: User) throws -> Double {
-        let today = Date()
-        let remainingDays = Double(today.endOfWeek.numberOfDays(from: today))
+        let today = Date().startOfDay
+        let nextPayday = today.next(day: user.payday, direction: .forward)
+        let daysUntilPayday = nextPayday.numberOfDays(from: today.startOfDay)
+        let daysUntilEndOfWeek = today.endOfWeek.numberOfDays(from: today)
+        let remainingDays = min(daysUntilEndOfWeek, daysUntilPayday)
         let dailySpending = try calculateDailyTravelSpending(for: user)
 
-        return remainingDays * dailySpending
+        return Double(remainingDays) * dailySpending
     }
 
     private func calculateRemainingTravelSpendingThisMonth(for user: User) throws -> Double {
