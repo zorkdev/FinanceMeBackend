@@ -89,6 +89,7 @@ final class SpendingBusinessLogic {
         let spendingThisMonth = try calculateSpendingThisMonth(for: user)
         let dailySpendingAverage = try calculateDailySpendingAverage(for: user)
         let remainingTravel = try calculateRemainingTravelSpendingThisMonth(for: user)
+        let spendingTotal = try calculateSpendingTotalThisMonth(for: user)
         let allowance = spendingLimit + spendingThisMonth + remainingTravel
 
         let remainingDays = Double(nextPayday.numberOfDays(from: now))
@@ -105,7 +106,8 @@ final class SpendingBusinessLogic {
         print("Forecast: \(forecast)")
 
         let currentmonthSummary = CurrentMonthSummary(allowance: allowance,
-                                                      forecast: forecast)
+                                                      forecast: forecast,
+                                                      spending: spendingTotal)
         return currentmonthSummary
     }
 
@@ -173,6 +175,28 @@ extension SpendingBusinessLogic {
                 $0.created > now.startOfDay) })
 
         return calculateAmountSum(from: transactionsWithoutTravel)
+    }
+
+    private func calculateSpendingTotalThisMonth(for user: User) throws -> Double {
+        let from = Date().next(day: user.payday, direction: .backward)
+
+        let transactions = try user.transactions
+            .makeQuery()
+            .and { group in
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externalRegularOutbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.externelRegularInbound.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.stripeFunding.rawValue)
+                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
+            }
+            .all()
+
+        return calculateAmountSum(from: transactions)
     }
 
     private func calculateSpendingLimit(for user: User) throws -> Double {
