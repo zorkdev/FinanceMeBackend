@@ -92,7 +92,7 @@ final class SpendingBusinessLogic {
         let spendingTotal = try calculateSpendingTotalThisMonth(for: user)
         let allowance = spendingLimit + spendingThisMonth + remainingTravel
 
-        let remainingDays = Double(nextPayday.numberOfDays(from: now))
+        let remainingDays = Double(nextPayday.numberOfDays(from: now.add(day: 1)))
         let forecast = spendingLimit + spendingThisMonth + dailySpendingAverage * remainingDays
 
         print("Monthly allowance")
@@ -136,22 +136,22 @@ extension SpendingBusinessLogic {
 
     private func calculateSpendingThisWeek(for user: User) throws -> Double {
         let from = Date().startOfWeek
-        let spending = try calculateSpending(for: user, from: from)
+        let spending = try calculateSpending(for: user, from: from, withTravel: false)
 
         return spending
     }
 
     private func calculateSpendingThisMonth(for user: User) throws -> Double {
         let from = Date().next(day: user.payday, direction: .backward)
-        let spending = try calculateSpending(for: user, from: from)
+        let spending = try calculateSpending(for: user, from: from, withTravel: true)
 
         return spending
     }
 
-    private func calculateSpending(for user: User, from: Date) throws -> Double {
+    private func calculateSpending(for user: User, from: Date, withTravel: Bool) throws -> Double {
         let now = Date()
 
-        let transactions = try user.transactions
+        var transactions = try user.transactions
             .makeQuery()
             .and { group in
                 try group.filter(Transaction.Constants.sourceKey,
@@ -170,11 +170,13 @@ extension SpendingBusinessLogic {
             }
             .all()
 
-        let transactionsWithoutTravel = transactions
-            .filter({ !($0.narrative == Constants.travelNarrative &&
-                $0.created > now.startOfDay) })
+        if withTravel == false {
+            transactions = transactions
+                .filter({ !($0.narrative == Constants.travelNarrative &&
+                    $0.created > now.startOfDay) })
+        }
 
-        return calculateAmountSum(from: transactionsWithoutTravel)
+        return calculateAmountSum(from: transactions)
     }
 
     private func calculateSpendingTotalThisMonth(for user: User) throws -> Double {
