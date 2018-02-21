@@ -276,6 +276,8 @@ extension SpendingBusinessLogic {
     }
 
     private func calculateDailySpendingAverage(for user: User) throws -> Double {
+        let today = Date().startOfDay
+
         let transactions = try user.transactions
             .makeQuery()
             .and { group in
@@ -289,10 +291,11 @@ extension SpendingBusinessLogic {
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, user.startDate)
+                try group.filter(Transaction.Constants.createdKey, .lessThan, today)
             }
             .all()
 
-        var numberOfDays = Date().numberOfDays(from: user.startDate)
+        var numberOfDays = today.add(day: -1).numberOfDays(from: user.startDate)
         numberOfDays = numberOfDays == 0 ? 0 : numberOfDays
         let amountSum = calculateAmountSum(from: transactions)
 
