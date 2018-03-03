@@ -40,8 +40,8 @@ final class UserController {
     }
 
     func loginUser(_ req: Request) throws -> ResponseRepresentable {
-        guard let email = req.formURLEncoded?[User.Constants.emailKey]?.string,
-            let password = req.formURLEncoded?[User.Constants.passwordKey]?.string else {
+        guard let email = req.json?[User.Constants.emailKey]?.string,
+            let password = req.json?[User.Constants.passwordKey]?.string else {
                 throw Abort.unauthorized
         }
 
