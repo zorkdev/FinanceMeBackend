@@ -6,6 +6,7 @@ enum Routes: String {
     case root = "/"
     case index = "index.html"
     case api = "api"
+    case login = "login"
     case users = "users"
     case usersMe = "users/me"
     case transactions = "transactions"
@@ -22,9 +23,11 @@ extension Droplet {
 
         let apiGroup = grouped(Routes.api.rawValue)
         let tokenGroup = apiGroup.grouped([TokenAuthenticationMiddleware(User.self)])
+        let passwordGroup = apiGroup.grouped([PasswordAuthenticationMiddleware(User.self)])
 
         let userController = UserController()
         userController.addRoutes(to: tokenGroup)
+        userController.addLoginRoutes(to: passwordGroup)
         userController.addPublicRoutes(to: apiGroup)
 
         let transactionController = TransactionController()

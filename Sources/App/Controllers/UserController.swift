@@ -38,8 +38,20 @@ final class UserController {
         return json
     }
 
+    func loginUser(_ req: Request) throws -> ResponseRepresentable {
+        let user = try req.authUser()
+        var json = try user.makeLoginJSON()
+        let allowance = try spendingBusinessLogic.calculateAllowance(for: user)
+        try json.set(Constants.allowanceKey, allowance)
+        return json
+    }
+
     func addPublicRoutes(to group: RouteBuilder) {
         group.add(.post, Routes.users.rawValue, value: store)
+    }
+
+    func addLoginRoutes(to group: RouteBuilder) {
+        group.add(.get, Routes.login.rawValue, value: loginUser)
     }
 
     func addRoutes(to group: RouteBuilder) {
