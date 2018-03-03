@@ -103,8 +103,8 @@ extension User: JSONConvertible {
 
     convenience init(json: JSON) throws {
         try self.init(name: json.get(Constants.nameKey),
-                      email: json.get(Constants.emailKey),
-                      password: json.get(Constants.passwordKey),
+                      email: (try? json.get(Constants.emailKey)) ?? "",
+                      password: (try? json.get(Constants.passwordKey)) ?? "",
                       payday: json.get(Constants.paydayKey),
                       startDate: json.get(Constants.startDateKey),
                       largeTransaction: json.get(Constants.largeTransactionKey),
