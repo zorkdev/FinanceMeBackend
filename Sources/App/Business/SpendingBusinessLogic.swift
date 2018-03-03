@@ -341,7 +341,7 @@ extension SpendingBusinessLogic {
         guard numberOfDays != 0 else { return 0 }
 
         let dailyTravelSpending = transactions
-            .compactMap ({ $0.amount })
+            .flatMap ({ $0.amount })
             .reduce(0, +) / numberOfDays
 
         return dailyTravelSpending
@@ -349,7 +349,7 @@ extension SpendingBusinessLogic {
 
     private func calculateAmountSum(from transactions: [Transaction]) -> Double {
         return transactions
-            .compactMap({ $0.amount })
+            .flatMap({ $0.amount })
             .reduce(0, +)
     }
 
