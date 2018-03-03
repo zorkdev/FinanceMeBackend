@@ -40,9 +40,7 @@ final class UserController {
 
     func loginUser(_ req: Request) throws -> ResponseRepresentable {
         let user = try req.authUser()
-        var json = try user.makeLoginJSON()
-        let allowance = try spendingBusinessLogic.calculateAllowance(for: user)
-        try json.set(Constants.allowanceKey, allowance)
+        let json = try user.makeLoginJSON()
         return json
     }
 

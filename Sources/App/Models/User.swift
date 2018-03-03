@@ -123,11 +123,6 @@ extension User: JSONConvertible {
 
     func makeLoginJSON() throws -> JSON {
         var json = JSON()
-        try json.set(User.idKey, id)
-        try json.set(Constants.nameKey, name)
-        try json.set(Constants.paydayKey, payday)
-        try json.set(Constants.startDateKey, startDate)
-        try json.set(Constants.largeTransactionKey, largeTransaction)
         try json.set(Constants.tokenKey, token.first()?.token)
         try json.set(Constants.sTokenKey, sToken)
         return json
@@ -156,7 +151,7 @@ extension User: PasswordAuthenticatable {
 
 struct HashPasswordVerifier: PasswordVerifier {
 
-    static let hasher = BCryptHasher(cost: 6)
+    static let hasher = BCryptHasher(cost: 7)
 
     func verify(password: Bytes, matches hash: Bytes) throws -> Bool {
         return try HashPasswordVerifier.hasher.check(password, matchesHash: hash)
