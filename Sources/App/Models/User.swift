@@ -4,7 +4,7 @@ import AuthProvider
 
 final class User: Model {
 
-    private struct Constants {
+    struct Constants {
         static let idKey = "id"
         static let tokenKey = "token"
         static let nameKey = "name"

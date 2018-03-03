@@ -23,11 +23,9 @@ extension Droplet {
 
         let apiGroup = grouped(Routes.api.rawValue)
         let tokenGroup = apiGroup.grouped([TokenAuthenticationMiddleware(User.self)])
-        let passwordGroup = apiGroup.grouped([PasswordAuthenticationMiddleware(User.self)])
 
         let userController = UserController()
         userController.addRoutes(to: tokenGroup)
-        userController.addLoginRoutes(to: passwordGroup)
         userController.addPublicRoutes(to: apiGroup)
 
         let transactionController = TransactionController()

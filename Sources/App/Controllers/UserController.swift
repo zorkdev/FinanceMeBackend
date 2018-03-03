@@ -1,4 +1,5 @@
 import Vapor
+import AuthProvider
 
 final class UserController {
 
@@ -39,17 +40,20 @@ final class UserController {
     }
 
     func loginUser(_ req: Request) throws -> ResponseRepresentable {
-        let user = try req.authUser()
+        guard let email = req.formURLEncoded?[User.Constants.emailKey]?.string,
+            let password = req.formURLEncoded?[User.Constants.passwordKey]?.string else {
+                throw Abort.unauthorized
+        }
+
+        let credentials = Password(username: email, password: password)
+        let user = try User.authenticate(credentials)
         let json = try user.makeLoginJSON()
         return json
     }
 
     func addPublicRoutes(to group: RouteBuilder) {
         group.add(.post, Routes.users.rawValue, value: store)
-    }
-
-    func addLoginRoutes(to group: RouteBuilder) {
-        group.add(.get, Routes.login.rawValue, value: loginUser)
+        group.add(.post, Routes.login.rawValue, value: loginUser)
     }
 
     func addRoutes(to group: RouteBuilder) {
