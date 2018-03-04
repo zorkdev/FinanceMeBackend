@@ -9,8 +9,8 @@ final class ReconciliationController {
         let users = try User.all()
 
         for user in users {
-            try transactionsBusinessLogic.updateTransactions(user: user)
-            try spendingBusinessLogic.calculateEndOfMonthBalance(for: user)
+            try? transactionsBusinessLogic.updateTransactions(user: user)
+            try? spendingBusinessLogic.calculateEndOfMonthBalance(for: user)
         }
 
         return Response(status: .ok)
