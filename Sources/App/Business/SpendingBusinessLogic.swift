@@ -121,15 +121,20 @@ extension SpendingBusinessLogic {
         let now = Date()
         let previousPayday = now.next(day: user.payday, direction: .backward)
         let nextPayday = now.next(day: user.payday, direction: .forward)
-        let daysUntilPayday = nextPayday.numberOfDays(from: now.startOfDay)
-        let remainingDays = min(Date.daysInWeek, daysUntilPayday)
+        var daysInWeek = Date.daysInWeek
+
+        if nextPayday.isThisWeek {
+            let daysUntilPayday = nextPayday.numberOfDays(from: now.startOfDay)
+            daysInWeek = min(Date.daysInWeek, daysUntilPayday)
+        }
+
         let startOfWeek = now.startOfWeek
         let daysInMonth = nextPayday.numberOfDays(from: previousPayday)
         let dailyLimit = limit / Double(daysInMonth)
         let numberOfDays = Double(nextPayday.numberOfDays(from: startOfWeek))
         guard numberOfDays != 0 else { return 0 }
         let newDailyLimit = dailyLimit + (carryOver / numberOfDays)
-        let newWeeklyLimit = newDailyLimit * Double(remainingDays)
+        let newWeeklyLimit = newDailyLimit * Double(daysInWeek)
 
         return newWeeklyLimit
     }
