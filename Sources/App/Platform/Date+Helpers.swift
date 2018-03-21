@@ -15,14 +15,6 @@ extension Date {
         return calendar.component(.day, from: self)
     }
 
-    var isThisWeek: Bool {
-        return calendar.isDate(self, equalTo: Date(), toGranularity: .weekOfYear)
-    }
-
-    var isThisMonth: Bool {
-        return calendar.isDate(self, equalTo: Date(), toGranularity: .month)
-    }
-
     var startOfDay: Date {
         return calendar.startOfDay(for: self)
     }

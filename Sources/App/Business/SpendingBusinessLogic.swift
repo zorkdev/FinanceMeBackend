@@ -123,8 +123,8 @@ extension SpendingBusinessLogic {
         let previousPayday = now.next(day: user.payday, direction: .backward)
         let nextPayday = now.next(day: user.payday, direction: .forward)
 
-        let startOfWeek = previousPayday.isThisWeek ? previousPayday : now.startOfWeek
-        let endOfWeek = nextPayday.isThisWeek ? nextPayday : now.endOfWeek
+        let startOfWeek = max(previousPayday, now.startOfWeek)
+        let endOfWeek = min(nextPayday, now.endOfWeek)
 
         let daysInWeek = endOfWeek.numberOfDays(from: startOfWeek)
         let daysInMonth = nextPayday.numberOfDays(from: previousPayday)
@@ -133,10 +133,6 @@ extension SpendingBusinessLogic {
         let numberOfDays = Double(nextPayday.numberOfDays(from: startOfWeek))
 
         guard numberOfDays != 0 else { return 0 }
-
-        print(previousPayday)
-        print(previousPayday.isThisWeek)
-        print(startOfWeek)
 
         let newDailyLimit = dailyLimit + (carryOver / numberOfDays)
         let newWeeklyLimit = newDailyLimit * Double(daysInWeek)
@@ -147,7 +143,7 @@ extension SpendingBusinessLogic {
     private func calculateSpendingThisWeek(for user: User) throws -> Double {
         let now = Date().startOfDay
         let previousPayday = now.next(day: user.payday, direction: .backward)
-        let startOfWeek = previousPayday.isThisWeek ? previousPayday : now.startOfWeek
+        let startOfWeek = max(previousPayday, now.startOfWeek)
 
         let spending = try calculateSpending(for: user, from: startOfWeek, withTravel: false)
 
@@ -260,7 +256,7 @@ extension SpendingBusinessLogic {
         let startOfWeek = now.startOfWeek
         let nextPayday = now.next(day: user.payday, direction: .forward)
         let payday = now.next(day: user.payday, direction: .backward)
-        guard payday.isThisWeek == false else { return 0 }
+        guard payday < startOfWeek else { return 0 }
         let daysSincePayday = startOfWeek.numberOfDays(from: payday)
         let daysInMonth = nextPayday.numberOfDays(from: payday)
 
