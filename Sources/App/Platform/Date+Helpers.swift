@@ -1,8 +1,11 @@
 import Foundation
 
 private let calendar: Calendar = {
-    var calendar = Calendar.current
+    var calendar = Calendar(identifier: .gregorian)
     calendar.locale = Locale(identifier: "en_GB")
+    calendar.timeZone = TimeZone(identifier: "Europe/London")!
+    print(calendar.firstWeekday)
+    print(Date())
     return calendar
 }()
 

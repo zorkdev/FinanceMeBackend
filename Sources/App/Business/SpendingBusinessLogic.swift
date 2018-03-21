@@ -134,6 +134,10 @@ extension SpendingBusinessLogic {
 
         guard numberOfDays != 0 else { return 0 }
 
+        print(startOfWeek)
+        print(endOfWeek)
+        print(daysInWeek)
+
         let newDailyLimit = dailyLimit + (carryOver / numberOfDays)
         let newWeeklyLimit = newDailyLimit * Double(daysInWeek)
 
