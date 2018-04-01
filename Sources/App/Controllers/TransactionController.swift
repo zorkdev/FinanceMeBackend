@@ -29,6 +29,7 @@ final class TransactionController: ResourceRepresentable {
         let user = try req.authUser()
         guard transaction.userId == user.id else { throw Abort.notFound }
         updatedTransaction.userId = user.id
+        try transaction.delete()
         try updatedTransaction.save()
         return updatedTransaction
     }
