@@ -70,7 +70,6 @@ final class SpendingBusinessLogic {
         let remainingAllowance = weeklyLimit + spendingThisWeek + remainingTravel
 
         logger.info("Allowance")
-        logger.info("Allowance")
         logger.info("Limit: \(spendingLimit)")
         logger.info("This week: \(spendingThisWeek)")
         logger.info("Travel: \(remainingTravel)")
