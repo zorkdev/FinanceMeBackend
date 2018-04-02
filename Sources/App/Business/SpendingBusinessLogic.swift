@@ -69,13 +69,14 @@ final class SpendingBusinessLogic {
         let weeklyLimit = self.calculateWeeklyLimit(for: user, limit: spendingLimit, carryOver: carryOver)
         let remainingAllowance = weeklyLimit + spendingThisWeek + remainingTravel
 
-        print("Allowance")
-        print("Limit: \(spendingLimit)")
-        print("This week: \(spendingThisWeek)")
-        print("Travel: \(remainingTravel)")
-        print("Carry over: \(carryOver)")
-        print("Weekly limit: \(weeklyLimit)")
-        print("Remaining allowance: \(remainingAllowance)")
+        logger.info("Allowance")
+        logger.info("Allowance")
+        logger.info("Limit: \(spendingLimit)")
+        logger.info("This week: \(spendingThisWeek)")
+        logger.info("Travel: \(remainingTravel)")
+        logger.info("Carry over: \(carryOver)")
+        logger.info("Weekly limit: \(weeklyLimit)")
+        logger.info("Remaining allowance: \(remainingAllowance)")
 
         return remainingAllowance
     }
@@ -95,15 +96,15 @@ final class SpendingBusinessLogic {
         let remainingDays = Double(nextPayday.numberOfDays(from: now.startOfDay.add(day: 1)))
         let forecast = spendingLimit + spendingThisMonth + dailySpendingAverage * remainingDays
 
-        print("Monthly allowance")
-        print("Limit: \(spendingLimit)")
-        print("This month: \(spendingThisMonth)")
-        print("Travel: \(remainingTravel)")
-        print("Remaining allowance: \(allowance)")
+        logger.info("Monthly allowance")
+        logger.info("Limit: \(spendingLimit)")
+        logger.info("This month: \(spendingThisMonth)")
+        logger.info("Travel: \(remainingTravel)")
+        logger.info("Remaining allowance: \(allowance)")
 
-        print("Monthly forecast")
-        print("Daily spending: \(dailySpendingAverage)")
-        print("Forecast: \(forecast)")
+        logger.info("Monthly forecast")
+        logger.info("Daily spending: \(dailySpendingAverage)")
+        logger.info("Forecast: \(forecast)")
 
         let currentmonthSummary = CurrentMonthSummary(allowance: allowance,
                                                       forecast: forecast,
