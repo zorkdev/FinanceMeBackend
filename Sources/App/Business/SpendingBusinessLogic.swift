@@ -27,8 +27,6 @@ final class SpendingBusinessLogic {
             from = to.startOfDay.next(day: user.payday, direction: .backward)
         }
 
-        try transactionsBusinessLogic.getTransactions(user: user, from: from, to: to)
-
         let transactions = try user.transactions
             .makeQuery()
             .and { group in
@@ -61,7 +59,6 @@ final class SpendingBusinessLogic {
     }
 
     func calculateAllowance(for user: User) throws -> Double {
-        try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: Date())
         let spendingLimit = try calculateSpendingLimit(for: user)
         let spendingThisWeek = try calculateSpendingThisWeek(for: user)
         let remainingTravel = try calculateRemainingTravelSpendingThisWeek(for: user)
@@ -84,7 +81,6 @@ final class SpendingBusinessLogic {
         let now = Date()
         let nextPayday = now.startOfDay.next(day: user.payday, direction: .forward)
 
-        try transactionsBusinessLogic.getTransactions(user: user, from: user.startDate, to: now)
         let spendingLimit = try calculateSpendingLimit(for: user)
         let spendingThisMonth = try calculateSpendingThisMonth(for: user)
         let dailySpendingAverage = try calculateDailySpendingAverage(for: user)

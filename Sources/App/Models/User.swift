@@ -14,6 +14,7 @@ final class User: Model {
         static let startDateKey = "startDate"
         static let largeTransactionKey = "largeTransaction"
         static let sTokenKey = "sToken"
+        static let customerUidKey = "customerUid"
     }
 
     let storage = Storage()
@@ -25,6 +26,7 @@ final class User: Model {
     var startDate: Date
     var largeTransaction: Double
     var sToken: String?
+    var customerUid: String?
 
     var token: Children<User, Token> {
         return children()
@@ -44,7 +46,8 @@ final class User: Model {
          payday: Int,
          startDate: Date,
          largeTransaction: Double,
-         sToken: String?) {
+         sToken: String?,
+         customerUid: String?) {
         self.name = name
         self.email = email
         self.password = password
@@ -52,6 +55,7 @@ final class User: Model {
         self.startDate = startDate
         self.largeTransaction = largeTransaction
         self.sToken = sToken
+        self.customerUid = customerUid
     }
 
     init(row: Row) throws {
@@ -62,6 +66,7 @@ final class User: Model {
         startDate = try row.get(Constants.startDateKey)
         largeTransaction = try row.get(Constants.largeTransactionKey)
         sToken = try row.get(Constants.sTokenKey)
+        customerUid = try row.get(Constants.customerUidKey)
     }
 
     func makeRow() throws -> Row {
@@ -73,6 +78,7 @@ final class User: Model {
         try row.set(Constants.startDateKey, startDate)
         try row.set(Constants.largeTransactionKey, largeTransaction)
         try row.set(Constants.sTokenKey, sToken)
+        try row.set(Constants.customerUidKey, customerUid)
         return row
     }
 
@@ -90,6 +96,7 @@ extension User: Preparation {
             builder.date(Constants.startDateKey)
             builder.double(Constants.largeTransactionKey)
             builder.string(Constants.sTokenKey, optional: true)
+            builder.string(Constants.customerUidKey, optional: true)
         }
     }
 
@@ -108,7 +115,8 @@ extension User: JSONConvertible {
                       payday: json.get(Constants.paydayKey),
                       startDate: json.get(Constants.startDateKey),
                       largeTransaction: json.get(Constants.largeTransactionKey),
-                      sToken: nil)
+                      sToken: nil,
+                      customerUid: nil)
     }
 
     func makeJSON() throws -> JSON {

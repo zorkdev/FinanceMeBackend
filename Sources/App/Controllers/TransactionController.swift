@@ -51,6 +51,27 @@ final class TransactionController: ResourceRepresentable {
         )
     }
 
+    func handlePayload(_ req: Request) throws -> ResponseRepresentable {
+        return try Response.async { portal in
+            portal.close(with: Response(status: .ok))
+            
+            let transactionPayload = try req.transactionPayload()
+            guard let user = try User
+                .makeQuery()
+                .filter(User.Constants.customerUidKey,
+                        .equals,
+                        transactionPayload.customerUid)
+                .first() else {
+                    return
+            }
+            _ = try? self.transactionsBusinessLogic.getTransactions(user: user)
+        }
+    }
+
+    func addPublicRoutes(to group: RouteBuilder) {
+        group.add(.post, Routes.transactionPayload.rawValue, value: handlePayload)
+    }
+
     func addRoutes(to group: RouteBuilder) throws {
         try group.resource(Routes.transactions.rawValue, TransactionController.self)
     }
@@ -64,6 +85,11 @@ extension Request {
     func transaction() throws -> Transaction {
         guard let json = json else { throw Abort.badRequest }
         return try Transaction(json: json)
+    }
+
+    func transactionPayload() throws -> TransactionPayload {
+        guard let json = json else { throw Abort.badRequest }
+        return try TransactionPayload(json: json)
     }
 
 }
