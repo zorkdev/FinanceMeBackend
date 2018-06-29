@@ -155,7 +155,7 @@ extension Transaction: JSONConvertible {
             throw NodeError.invalidDictionaryKeyType
         }
 
-        let sourceString: String = try json.get(Constants.sourceKey)
+        let sourceString: String = (try? json.get(Constants.sourceKey)) ?? TransactionSource.fasterPaymentsOut.rawValue
         guard let source = TransactionSource(rawValue: sourceString) else {
             throw NodeError.invalidDictionaryKeyType
         }
