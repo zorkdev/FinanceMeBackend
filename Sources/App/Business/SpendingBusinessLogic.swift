@@ -44,6 +44,9 @@ final class SpendingBusinessLogic {
                                  TransactionSource.stripeFunding.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
+                                 TransactionSource.directDebit.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
                                  TransactionSource.internalTransfer.rawValue)
                 try group.filter(Transaction.Constants.narrativeKey,
                                  .notEquals,
@@ -177,6 +180,9 @@ extension SpendingBusinessLogic {
                                  TransactionSource.stripeFunding.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
+                                 TransactionSource.directDebit.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
                                  TransactionSource.internalTransfer.rawValue)
                 try group.filter(Transaction.Constants.narrativeKey,
                                  .notEquals,
@@ -214,6 +220,9 @@ extension SpendingBusinessLogic {
                                  TransactionSource.stripeFunding.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
+                                 TransactionSource.directDebit.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
                                  TransactionSource.internalTransfer.rawValue)
                 try group.filter(Transaction.Constants.narrativeKey,
                                  .notEquals,
@@ -244,6 +253,9 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.directDebit.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.internalTransfer.rawValue)
@@ -295,6 +307,9 @@ extension SpendingBusinessLogic {
                                  TransactionSource.stripeFunding.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
+                                 TransactionSource.directDebit.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
                                  TransactionSource.internalTransfer.rawValue)
                 try group.filter(Transaction.Constants.narrativeKey,
                                  .notEquals,
@@ -328,6 +343,9 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.directDebit.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.internalTransfer.rawValue)
