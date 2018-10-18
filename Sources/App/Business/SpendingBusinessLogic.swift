@@ -4,6 +4,7 @@ final class SpendingBusinessLogic {
 
     private struct Constants {
         static let travelNarrative = "TfL"
+        static let internalTransferNarrative = "INTERNAL TRANSFER"
     }
 
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
@@ -41,6 +42,12 @@ final class SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.internalTransfer.rawValue)
+                try group.filter(Transaction.Constants.narrativeKey,
+                                 .notEquals,
+                                 Constants.internalTransferNarrative)
             }
             .all()
 
@@ -168,6 +175,12 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.internalTransfer.rawValue)
+                try group.filter(Transaction.Constants.narrativeKey,
+                                 .notEquals,
+                                 Constants.internalTransferNarrative)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
                 try group.filter(Transaction.Constants.createdKey, .lessThanOrEquals, now)
                 try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
@@ -199,6 +212,12 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.internalTransfer.rawValue)
+                try group.filter(Transaction.Constants.narrativeKey,
+                                 .notEquals,
+                                 Constants.internalTransferNarrative)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
             }
             .all()
@@ -225,6 +244,12 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.internalTransfer.rawValue)
+                try group.filter(Transaction.Constants.narrativeKey,
+                                 .notEquals,
+                                 Constants.internalTransferNarrative)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
                 try group.filter(Transaction.Constants.createdKey, .lessThan, to)
             }.or { group in
@@ -268,6 +293,12 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.internalTransfer.rawValue)
+                try group.filter(Transaction.Constants.narrativeKey,
+                                 .notEquals,
+                                 Constants.internalTransferNarrative)
                 try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
                 try group.filter(Transaction.Constants.amountKey, .lessThan, user.largeTransaction)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, payday)
@@ -297,6 +328,12 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
+                try group.filter(Transaction.Constants.sourceKey,
+                                 .notEquals,
+                                 TransactionSource.internalTransfer.rawValue)
+                try group.filter(Transaction.Constants.narrativeKey,
+                                 .notEquals,
+                                 Constants.internalTransferNarrative)
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, user.startDate)
                 try group.filter(Transaction.Constants.createdKey, .lessThan, today)
             }
