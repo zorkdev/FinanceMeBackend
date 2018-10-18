@@ -60,6 +60,9 @@ final class TransactionsBusinessLogic {
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.externalInbound.rawValue)
+                try group.filter(Transaction.Constants.isArchivedKey,
+                                 .equals,
+                                 false)
             }
             .delete()
     }

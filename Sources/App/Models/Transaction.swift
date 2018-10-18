@@ -53,6 +53,7 @@ final class Transaction: Model {
         static let narrativeKey = "narrative"
         static let sourceKey = "source"
         static let balanceKey = "balance"
+        static let isArchivedKey = "is_archived"
     }
 
     let storage = Storage()
@@ -64,6 +65,7 @@ final class Transaction: Model {
     let narrative: String
     let source: TransactionSource
     let balance: Double
+    let isArchived: Bool
 
     var userId: Identifier?
 
@@ -78,6 +80,7 @@ final class Transaction: Model {
          narrative: String,
          source: TransactionSource,
          balance: Double,
+         isArchived: Bool,
          user: User?) {
         self.currency = currency
         self.amount = amount
@@ -86,6 +89,7 @@ final class Transaction: Model {
         self.narrative = narrative
         self.source = source
         self.balance = balance
+        self.isArchived = isArchived
         self.userId = user?.id
     }
 
@@ -95,6 +99,7 @@ final class Transaction: Model {
         created = try row.get(Constants.createdKey)
         narrative = try row.get(Constants.narrativeKey)
         balance = try row.get(Constants.balanceKey)
+        isArchived = try row.get(Constants.isArchivedKey)
         userId = try row.get(User.foreignIdKey)
 
         let directionString: String = try row.get(Constants.directionKey)
@@ -119,6 +124,7 @@ final class Transaction: Model {
         try row.set(Constants.narrativeKey, narrative)
         try row.set(Constants.sourceKey, source.rawValue)
         try row.set(Constants.balanceKey, balance)
+        try row.set(Constants.isArchivedKey, isArchived)
         try row.set(User.foreignIdKey, userId)
         return row
     }
@@ -137,6 +143,7 @@ extension Transaction: Preparation {
             builder.string(Constants.narrativeKey)
             builder.string(Constants.sourceKey)
             builder.double(Constants.balanceKey)
+            builder.bool(Constants.isArchivedKey)
             builder.parent(User.self)
         }
     }
@@ -167,6 +174,7 @@ extension Transaction: JSONConvertible {
                       narrative: json.get(Constants.narrativeKey),
                       source: source,
                       balance: json.get(Constants.balanceKey),
+                      isArchived: false,
                       user: nil)
 
         if let id: Identifier = try json.get(Constants.idKey) {
