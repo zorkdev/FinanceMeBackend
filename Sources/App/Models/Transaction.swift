@@ -54,6 +54,8 @@ final class Transaction: Model {
         static let sourceKey = "source"
         static let balanceKey = "balance"
         static let isArchivedKey = "is_archived"
+        static let internalNarrativeKey = "internal_narrative"
+        static let internalAmountKey = "internal_amount"
     }
 
     let storage = Storage()
@@ -65,7 +67,10 @@ final class Transaction: Model {
     let narrative: String
     let source: TransactionSource
     let balance: Double
+
     let isArchived: Bool
+    let internalNarrative: String?
+    let internalAmount: Double?
 
     var userId: Identifier?
 
@@ -81,6 +86,8 @@ final class Transaction: Model {
          source: TransactionSource,
          balance: Double,
          isArchived: Bool,
+         internalNarrative: String?,
+         internalAmount: Double?,
          user: User?) {
         self.currency = currency
         self.amount = amount
@@ -90,6 +97,8 @@ final class Transaction: Model {
         self.source = source
         self.balance = balance
         self.isArchived = isArchived
+        self.internalNarrative = internalNarrative
+        self.internalAmount = internalAmount
         self.userId = user?.id
     }
 
@@ -100,6 +109,8 @@ final class Transaction: Model {
         narrative = try row.get(Constants.narrativeKey)
         balance = try row.get(Constants.balanceKey)
         isArchived = try row.get(Constants.isArchivedKey)
+        internalNarrative = try row.get(Constants.internalNarrativeKey)
+        internalAmount = try row.get(Constants.internalAmountKey)
         userId = try row.get(User.foreignIdKey)
 
         let directionString: String = try row.get(Constants.directionKey)
@@ -125,6 +136,8 @@ final class Transaction: Model {
         try row.set(Constants.sourceKey, source.rawValue)
         try row.set(Constants.balanceKey, balance)
         try row.set(Constants.isArchivedKey, isArchived)
+        try row.set(Constants.internalNarrativeKey, internalNarrative)
+        try row.set(Constants.internalAmountKey, internalAmount)
         try row.set(User.foreignIdKey, userId)
         return row
     }
@@ -144,6 +157,8 @@ extension Transaction: Preparation {
             builder.string(Constants.sourceKey)
             builder.double(Constants.balanceKey)
             builder.bool(Constants.isArchivedKey)
+            builder.string(Constants.internalNarrativeKey, optional: true)
+            builder.double(Constants.internalAmountKey, optional: true)
             builder.parent(User.self)
         }
     }
@@ -175,6 +190,8 @@ extension Transaction: JSONConvertible {
                       source: source,
                       balance: json.get(Constants.balanceKey),
                       isArchived: false,
+                      internalNarrative: nil,
+                      internalAmount: nil,
                       user: nil)
 
         if let id: Identifier = try json.get(Constants.idKey) {

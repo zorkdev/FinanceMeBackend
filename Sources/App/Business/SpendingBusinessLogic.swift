@@ -28,6 +28,8 @@ final class SpendingBusinessLogic {
             from = to.startOfDay.next(day: user.payday, direction: .backward)
         }
 
+        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
+
         let transactions = try user.transactions
             .makeQuery()
             .and { group in
@@ -53,8 +55,8 @@ final class SpendingBusinessLogic {
                                  Constants.internalTransferNarrative)
             }
             .all()
+            .filter(regularTransactions: regularTransactions)
 
-        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
         var balance = calculateAmountSum(from: transactions + regularTransactions)
 
         if let lastBalance = lastBalance,
@@ -166,6 +168,8 @@ extension SpendingBusinessLogic {
     private func calculateSpending(for user: User, from: Date, withTravel: Bool) throws -> Double {
         let now = Date()
 
+        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
+
         var transactions = try user.transactions
             .makeQuery()
             .and { group in
@@ -193,6 +197,7 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.amountKey, .lessThan, user.largeTransaction)
             }
             .all()
+            .filter(regularTransactions: regularTransactions)
 
         if withTravel == false {
             transactions = transactions
@@ -205,6 +210,8 @@ extension SpendingBusinessLogic {
 
     private func calculateSpendingTotalThisMonth(for user: User) throws -> Double {
         let from = Date().startOfDay.next(day: user.payday, direction: .backward)
+
+        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
 
         let transactions = try user.transactions
             .makeQuery()
@@ -230,6 +237,7 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
             }
             .all()
+            .filter(regularTransactions: regularTransactions)
 
         return calculateAmountSum(from: transactions)
     }
@@ -269,6 +277,7 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.amountKey, .greaterThanOrEquals, user.largeTransaction)
             }
             .all()
+            .filter(regularTransactions: regularTransactions)
 
         var carryOver = 0.0
 
@@ -292,6 +301,8 @@ extension SpendingBusinessLogic {
         guard payday < startOfWeek else { return 0 }
         let daysSincePayday = startOfWeek.numberOfDays(from: payday)
         let daysInMonth = nextPayday.numberOfDays(from: payday)
+
+        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
 
         let transactions = try user.transactions
             .makeQuery()
@@ -320,6 +331,7 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.createdKey, .lessThan, startOfWeek)
             }
             .all()
+            .filter(regularTransactions: regularTransactions)
 
         let spending = calculateAmountSum(from: transactions)
         let dailyLimit = limit / Double(daysInMonth)
@@ -330,6 +342,8 @@ extension SpendingBusinessLogic {
 
     private func calculateDailySpendingAverage(for user: User) throws -> Double {
         let today = Date().startOfDay
+
+        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
 
         let transactions = try user.transactions
             .makeQuery()
@@ -356,6 +370,7 @@ extension SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.createdKey, .lessThan, today)
             }
             .all()
+            .filter(regularTransactions: regularTransactions)
 
         var numberOfDays = today.add(day: -1).numberOfDays(from: user.startDate)
         numberOfDays = numberOfDays == 0 ? 0 : numberOfDays
@@ -413,4 +428,42 @@ extension SpendingBusinessLogic {
             .reduce(0, +)
     }
 
+    private func filterTransactions(transactions: [Transaction],
+                                    regularTransactions: [Transaction]) -> [Transaction] {
+        let mappedRegularTransactions: [(String, Double)] = regularTransactions
+            .flatMap { transaction in
+                guard let narrative = transaction.internalNarrative,
+                    let amount = transaction.internalAmount else { return nil }
+                return (narrative, amount)
+        }
+
+        return transactions.filter { transaction in
+            let mappedTransaction = (transaction.narrative, transaction.amount)
+            return mappedRegularTransactions
+                .contains { $0.0 == mappedTransaction.0 && $0.1 == mappedTransaction.1 }
+        }
+    }
+
+}
+
+extension Array where Element: Transaction {
+    func filter(regularTransactions: [Transaction]) -> [Transaction] {
+        let mappedRegularTransactions: [(String, Double?)] = regularTransactions
+            .flatMap { transaction in
+                guard let narrative = transaction.internalNarrative else { return nil }
+                return (narrative, transaction.internalAmount)
+        }
+
+        return self.filter { transaction in
+            let mappedTransaction = (transaction.narrative, transaction.amount)
+            return !mappedRegularTransactions
+                .contains { regularTransaction in
+                    if let amount = regularTransaction.1 {
+                        return mappedTransaction.0 == regularTransaction.0 && mappedTransaction.1 == amount
+                    } else {
+                        return mappedTransaction.0 == regularTransaction.0
+                    }
+            }
+        }
+    }
 }
