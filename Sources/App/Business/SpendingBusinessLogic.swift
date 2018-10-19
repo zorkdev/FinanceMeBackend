@@ -35,7 +35,7 @@ final class SpendingBusinessLogic {
                 try group.filter(Transaction.Constants.createdKey, .lessThan, to)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.externalRegularOutbound.rawValue)
@@ -174,7 +174,7 @@ extension SpendingBusinessLogic {
                                  TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
@@ -214,7 +214,7 @@ extension SpendingBusinessLogic {
                                  TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
@@ -249,7 +249,7 @@ extension SpendingBusinessLogic {
                                  TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
@@ -301,7 +301,7 @@ extension SpendingBusinessLogic {
                                  TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)
@@ -339,7 +339,7 @@ extension SpendingBusinessLogic {
                                  TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.stripeFunding.rawValue)

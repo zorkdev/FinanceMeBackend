@@ -53,7 +53,7 @@ final class TransactionsBusinessLogic {
                                  TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.externalOutbound.rawValue)
@@ -76,7 +76,7 @@ final class TransactionsBusinessLogic {
                                  TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .equals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
             }
             .all()
     }
@@ -90,7 +90,7 @@ final class TransactionsBusinessLogic {
                                  TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .equals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .equals,
                                  TransactionSource.externalOutbound.rawValue)
@@ -115,7 +115,7 @@ extension TransactionsBusinessLogic {
                                  TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
                                  TransactionSource.externalOutbound.rawValue)
@@ -140,7 +140,7 @@ extension TransactionsBusinessLogic {
                                  TransactionSource.externalRegularOutbound.rawValue)
                 try group.filter(Transaction.Constants.sourceKey,
                                  .notEquals,
-                                 TransactionSource.externelRegularInbound.rawValue)
+                                 TransactionSource.externalRegularInbound.rawValue)
             }
             .all()
     }
