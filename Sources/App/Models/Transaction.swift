@@ -46,13 +46,11 @@ final class Transaction: Model {
 
     struct Constants {
         static let idKey = "id"
-        static let currencyKey = "currency"
         static let amountKey = "amount"
         static let directionKey = "direction"
         static let createdKey = "created"
         static let narrativeKey = "narrative"
         static let sourceKey = "source"
-        static let balanceKey = "balance"
         static let isArchivedKey = "is_archived"
         static let internalNarrativeKey = "internal_narrative"
         static let internalAmountKey = "internal_amount"
@@ -60,13 +58,11 @@ final class Transaction: Model {
 
     let storage = Storage()
 
-    let currency: String
     let amount: Double
     let direction: TransactionDirection
     let created: Date
     let narrative: String
     let source: TransactionSource
-    let balance: Double
 
     let isArchived: Bool
     let internalNarrative: String?
@@ -78,24 +74,20 @@ final class Transaction: Model {
         return parent(id: userId)
     }
 
-    init(currency: String,
-         amount: Double,
+    init(amount: Double,
          direction: TransactionDirection,
          created: Date,
          narrative: String,
          source: TransactionSource,
-         balance: Double,
          isArchived: Bool,
          internalNarrative: String?,
          internalAmount: Double?,
          user: User?) {
-        self.currency = currency
         self.amount = amount
         self.direction = direction
         self.created = created
         self.narrative = narrative
         self.source = source
-        self.balance = balance
         self.isArchived = isArchived
         self.internalNarrative = internalNarrative
         self.internalAmount = internalAmount
@@ -103,11 +95,9 @@ final class Transaction: Model {
     }
 
     init(row: Row) throws {
-        currency = try row.get(Constants.currencyKey)
         amount = try row.get(Constants.amountKey)
         created = try row.get(Constants.createdKey)
         narrative = try row.get(Constants.narrativeKey)
-        balance = try row.get(Constants.balanceKey)
         isArchived = try row.get(Constants.isArchivedKey)
         internalNarrative = try row.get(Constants.internalNarrativeKey)
         internalAmount = try row.get(Constants.internalAmountKey)
@@ -128,13 +118,11 @@ final class Transaction: Model {
 
     func makeRow() throws -> Row {
         var row = Row()
-        try row.set(Constants.currencyKey, currency)
         try row.set(Constants.amountKey, amount)
         try row.set(Constants.directionKey, direction.rawValue)
         try row.set(Constants.createdKey, created)
         try row.set(Constants.narrativeKey, narrative)
         try row.set(Constants.sourceKey, source.rawValue)
-        try row.set(Constants.balanceKey, balance)
         try row.set(Constants.isArchivedKey, isArchived)
         try row.set(Constants.internalNarrativeKey, internalNarrative)
         try row.set(Constants.internalAmountKey, internalAmount)
@@ -149,13 +137,11 @@ extension Transaction: Preparation {
     static func prepare(_ database: Database) throws {
         try database.create(self) { builder in
             builder.id()
-            builder.string(Constants.currencyKey)
             builder.double(Constants.amountKey)
             builder.string(Constants.directionKey)
             builder.date(Constants.createdKey)
             builder.string(Constants.narrativeKey)
             builder.string(Constants.sourceKey)
-            builder.double(Constants.balanceKey)
             builder.bool(Constants.isArchivedKey)
             builder.string(Constants.internalNarrativeKey, optional: true)
             builder.double(Constants.internalAmountKey, optional: true)
@@ -182,13 +168,11 @@ extension Transaction: JSONConvertible {
             throw NodeError.invalidDictionaryKeyType
         }
 
-        try self.init(currency: json.get(Constants.currencyKey),
-                      amount: json.get(Constants.amountKey),
+        try self.init(amount: json.get(Constants.amountKey),
                       direction: direction,
                       created: json.get(Constants.createdKey),
                       narrative: json.get(Constants.narrativeKey),
                       source: source,
-                      balance: json.get(Constants.balanceKey),
                       isArchived: false,
                       internalNarrative: nil,
                       internalAmount: nil,
@@ -202,13 +186,11 @@ extension Transaction: JSONConvertible {
     func makeJSON() throws -> JSON {
         var json = JSON()
         try json.set(Constants.idKey, id)
-        try json.set(Constants.currencyKey, currency)
         try json.set(Constants.amountKey, amount)
         try json.set(Constants.directionKey, direction.rawValue)
         try json.set(Constants.createdKey, created)
         try json.set(Constants.narrativeKey, narrative)
         try json.set(Constants.sourceKey, source.rawValue)
-        try json.set(Constants.balanceKey, balance)
         return json
     }
 
