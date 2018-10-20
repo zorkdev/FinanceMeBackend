@@ -9,12 +9,12 @@ let package = Package(
         .executable(name: "Run", targets: ["Run"])
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", .exact("2.4.5")),
-        .package(url: "https://github.com/vapor/fluent-provider.git", .exact("1.3.0")),
-        .package(url: "https://github.com/vapor/auth-provider.git", .exact("1.2.0")),
-        .package(url: "https://github.com/vapor-community/postgresql-provider.git", .exact("2.1.0")),
-        .package(url: "https://github.com/matthijs2704/vapor-apns.git", .exact("2.1.0")),
-        .package(url: "https://github.com/Zewo/zlib.git", .exact("0.4.0"))
+        .package(url: "https://github.com/vapor/vapor.git", from: "2.4.5"),
+        .package(url: "https://github.com/vapor/fluent-provider.git", from: "1.3.0"),
+        .package(url: "https://github.com/vapor-community/postgresql-provider.git", from: "2.1.0"),
+        .package(url: "https://github.com/Zewo/zlib.git", from: "0.4.0"),
+        .package(url: "https://github.com/vapor/auth-provider.git", from: "1.2.0"),
+        .package(url: "https://github.com/matthijs2704/vapor-apns.git", from: "2.1.0")
     ],
     targets: [
         .target(name: "App",
