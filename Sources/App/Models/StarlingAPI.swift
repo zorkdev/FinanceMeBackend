@@ -1,3 +1,5 @@
+import Vapor
+
 enum StarlingAPI: String {
     static let baseURL = "https://api.starlingbank.com/api/v1/"
 
@@ -8,7 +10,9 @@ enum StarlingAPI: String {
     }
 }
 
-enum StarlingParameters: String {
-    case from
-    case to
+struct StarlingParameters: Content {
+
+    var from: String?
+    var to: String?
+
 }

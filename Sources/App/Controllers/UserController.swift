@@ -1,79 +1,93 @@
 import Vapor
-import AuthProvider
+import Authentication
 
 final class UserController {
 
-    private struct Constants {
-        static let allowanceKey = "allowance"
-    }
-
     private let spendingBusinessLogic = SpendingBusinessLogic()
 
-    func showCurrentUser(_ req: Request) throws -> ResponseRepresentable {
-        let user = try req.authUser()
-        var json = try user.makeJSON()
-        let allowance = try spendingBusinessLogic.calculateAllowance(for: user)
-        try json.set(Constants.allowanceKey, allowance)
-        return json
-    }
+    func showCurrentUser(_ req: Request) throws -> Future<UserResponse> {
+        let user = try req.requireAuthenticated(User.self)
 
-    func store(_ req: Request) throws -> ResponseRepresentable {
-        let user = try req.user()
-        try user.save()
-        let token = try Token.generate(for: user)
-        try token.save()
-        return user
-    }
-
-    func updateCurrentUser(_ req: Request) throws -> ResponseRepresentable {
-        let user = try req.authUser()
-        let updatedUser = try req.user()
-        user.name = updatedUser.name
-        user.largeTransaction = updatedUser.largeTransaction
-        user.payday = updatedUser.payday
-        user.startDate = updatedUser.startDate
-        try user.save()
-        var json = try user.makeJSON()
-        let allowance = try spendingBusinessLogic.calculateAllowance(for: user)
-        try json.set(Constants.allowanceKey, allowance)
-        return json
-    }
-
-    func loginUser(_ req: Request) throws -> ResponseRepresentable {
-        guard let email = req.json?[User.Constants.emailKey]?.string,
-            let password = req.json?[User.Constants.passwordKey]?.string else {
-                throw Abort.unauthorized
+        return try spendingBusinessLogic.calculateAllowance(for: user, on: req)
+            .map { allowance in
+                var userResponse = user.response
+                userResponse.allowance = allowance
+                return userResponse
         }
-
-        let credentials = Password(username: email, password: password)
-        let user = try User.authenticate(credentials)
-        let json = try user.makeLoginJSON()
-        return json
     }
 
-    func addPublicRoutes(to group: RouteBuilder) {
-        group.add(.post, Routes.users.rawValue, value: store)
-        group.add(.post, Routes.login.rawValue, value: loginUser)
+    func store(_ req: Request) throws -> Future<UserResponse> {
+        return try req.content.decode(UserRequest.self)
+            .flatMap { userRequest in
+                let hasher = try req.make(BCryptDigest.self)
+                let password = try hasher.hash(userRequest.password, cost: 7)
+
+                let user = User(name: userRequest.name,
+                                email: userRequest.email,
+                                password: password,
+                                payday: userRequest.payday,
+                                startDate: userRequest.startDate,
+                                largeTransaction: userRequest.largeTransaction,
+                                sToken: nil,
+                                customerUid: nil)
+
+                return user.save(on: req)
+                    .flatMap { user in
+                        let token = try Token.generate(for: user)
+                        return token.save(on: req)
+                            .transform(to: user.response)
+                    }
+        }
     }
 
-    func addRoutes(to group: RouteBuilder) {
-        group.add(.get, Routes.usersMe.rawValue, value: showCurrentUser)
-        group.add(.patch, Routes.usersMe.rawValue, value: updateCurrentUser)
+    func updateCurrentUser(_ req: Request) throws -> Future<UserResponse> {
+        let user = try req.requireAuthenticated(User.self)
+        return try req.content.decode(UserResponse.self)
+            .flatMap { updatedUser in
+                user.name = updatedUser.name
+                user.largeTransaction = updatedUser.largeTransaction
+                user.payday = updatedUser.payday
+                user.startDate = updatedUser.startDate
+                return user.save(on: req)
+            }.flatMap { user in
+                return try self.spendingBusinessLogic.calculateAllowance(for: user, on: req)
+                    .map { allowance in
+                        var userResponse = user.response
+                        userResponse.allowance = allowance
+                        return userResponse
+                }
+        }
     }
 
-}
-
-extension UserController: EmptyInitializable {}
-
-extension Request {
-
-    func user() throws -> User {
-        guard let json = json else { throw Abort.badRequest }
-        return try User(json: json)
+    func loginUser(_ req: Request) throws -> Future<Session> {
+        return try req.content.decode(LoginRequest.self)
+            .flatMap { loginRequest -> Future<User?> in
+                let verifier = try req.make(BCryptDigest.self)
+                return User.authenticate(username: loginRequest.email,
+                                         password: loginRequest.password,
+                                         using: verifier,
+                                         on: req)
+            }.flatMap { user in
+                guard let user = user else { throw Abort(.internalServerError) }
+                return try user.token
+                    .query(on: req)
+                    .first()
+                    .map { token in
+                        guard let token = token,
+                            let sToken = user.sToken else { throw Abort(.internalServerError) }
+                        return Session(token: token.token, sToken: sToken)
+                }
+        }
     }
 
-    func authUser() throws -> User {
-        return try auth.assertAuthenticated()
+    func addPublicRoutes(to router: Router) {
+        router.post(Routes.users.rawValue, use: store)
+        router.post(Routes.login.rawValue, use: loginUser)
+    }
+
+    func addRoutes(to router: Router) {
+        router.get(Routes.usersMe.rawValue, use: showCurrentUser)
+        router.patch(Routes.usersMe.rawValue, use: updateCurrentUser)
     }
 
 }

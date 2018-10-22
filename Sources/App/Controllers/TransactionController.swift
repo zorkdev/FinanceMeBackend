@@ -1,95 +1,102 @@
 import Vapor
+import FluentPostgreSQL
 
-final class TransactionController: ResourceRepresentable {
+final class TransactionController {
 
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
 
-    func index(_ req: Request) throws -> ResponseRepresentable {
-        let user = try req.authUser()
-        let transactions = try transactionsBusinessLogic.getExternalTransactions(for: user)
-        return try transactions.makeJSON()
+    func index(_ req: Request) throws -> Future<[TransactionResponse]> {
+        let user = try req.requireAuthenticated(User.self)
+        return try transactionsBusinessLogic.getExternalTransactions(for: user, on: req)
+            .map { $0.map { $0.response } }
     }
 
-    func show(_ req: Request, transaction: Transaction) throws -> ResponseRepresentable {
-        let user = try req.authUser()
-        guard transaction.userId == user.id else { throw Abort.notFound }
-        return transaction
-    }
+    func show(_ req: Request) throws -> Future<TransactionResponse> {
+        let user = try req.requireAuthenticated(User.self)
 
-    func store(_ req: Request) throws -> ResponseRepresentable {
-        let transaction = try req.transaction()
-        let user = try req.authUser()
-        transaction.userId = user.id
-        try transaction.save()
-        return transaction
-    }
-
-    func replace(_ req: Request, transaction: Transaction) throws -> ResponseRepresentable {
-        let updatedTransaction = try req.transaction()
-        let user = try req.authUser()
-        guard transaction.userId == user.id else { throw Abort.notFound }
-        updatedTransaction.userId = user.id
-        try transaction.delete()
-        try updatedTransaction.save()
-        return updatedTransaction
-    }
-
-    func destroy(_ req: Request, transaction: Transaction) throws -> ResponseRepresentable {
-        let user = try req.authUser()
-        guard transaction.userId == user.id else { throw Abort.notFound }
-        try transaction.delete()
-        return Response(status: .ok)
-    }
-
-    func makeResource() -> Resource<Transaction> {
-        return Resource(
-            index: index,
-            store: store,
-            show: show,
-            replace: replace,
-            destroy: destroy
-        )
-    }
-
-    func handlePayload(_ req: Request) throws -> ResponseRepresentable {
-        return try Response.async { portal in
-            portal.close(with: Response(status: .ok))
-            
-            let transactionPayload = try req.transactionPayload()
-            guard let user = try User
-                .makeQuery()
-                .filter(User.Constants.customerUidKey,
-                        .equals,
-                        transactionPayload.customerUid)
-                .first() else {
-                    return
-            }
-            _ = try? self.transactionsBusinessLogic.getTransactions(user: user)
+        return try req.parameters.next(Transaction.self)
+            .flatMap { transaction in
+                guard transaction.userID == user.id else { throw Abort(.notFound) }
+                return req.eventLoop.newSucceededFuture(result: transaction.response)
         }
     }
 
-    func addPublicRoutes(to group: RouteBuilder) {
-        group.add(.post, Routes.transactionPayload.rawValue, value: handlePayload)
+    func store(_ req: Request) throws -> Future<TransactionResponse> {
+        let user = try req.requireAuthenticated(User.self)
+        guard let userID = user.id else { throw Abort(.notFound) }
+
+        return try req.content.decode(TransactionResponse.self)
+            .flatMap { transactionResponse in
+                let transaction = Transaction(amount: transactionResponse.amount,
+                                              direction: transactionResponse.direction,
+                                              created: transactionResponse.created,
+                                              narrative: transactionResponse.narrative,
+                                              source: transactionResponse.source,
+                                              isArchived: false,
+                                              internalNarrative: nil,
+                                              internalAmount: nil,
+                                              userID: userID)
+
+                return transaction.save(on: req).map { $0.response }
+        }
     }
 
-    func addRoutes(to group: RouteBuilder) throws {
-        try group.resource(Routes.transactions.rawValue, TransactionController.self)
+    func replace(_ req: Request) throws -> Future<TransactionResponse> {
+        let user = try req.requireAuthenticated(User.self)
+        guard let userID = user.id else { throw Abort(.notFound) }
+
+        return try req.parameters.next(Transaction.self)
+            .flatMap { transaction -> Future<TransactionResponse> in
+                guard transaction.userID == userID else { throw Abort(.notFound) }
+                return try req.content.decode(TransactionResponse.self)
+                    .flatMap { transactionResponse in
+                        transaction.amount = transactionResponse.amount
+                        transaction.direction = transactionResponse.direction
+                        transaction.created = transactionResponse.created
+                        transaction.narrative = transactionResponse.narrative
+                        transaction.source = transactionResponse.source
+                        return transaction.save(on: req).map { $0.response }
+                }
+            }
     }
 
-}
+    func destroy(_ req: Request) throws -> Future<HTTPStatus> {
+        let user = try req.requireAuthenticated(User.self)
+        guard let userID = user.id else { throw Abort(.notFound) }
 
-extension TransactionController: EmptyInitializable {}
-
-extension Request {
-
-    func transaction() throws -> Transaction {
-        guard let json = json else { throw Abort.badRequest }
-        return try Transaction(json: json)
+        return try req.parameters.next(Transaction.self)
+            .flatMap { transaction -> Future<Void> in
+                guard transaction.userID == userID else { throw Abort(.notFound) }
+                return transaction.delete(on: req)
+            }.transform(to: .ok)
     }
 
-    func transactionPayload() throws -> TransactionPayload {
-        guard let json = json else { throw Abort.badRequest }
-        return try TransactionPayload(json: json)
+    func handlePayload(_ req: Request) throws -> Future<HTTPStatus> {
+        _ = try? req.content.decode(TransactionPayload.self)
+            .flatMap { payload -> Future<[Transaction]> in
+                return User
+                    .query(on: req)
+                    .filter(\.customerUid == payload.customerUid)
+                    .first()
+                    .flatMap { user in
+                        guard let user = user else { throw Abort(.notFound) }
+                        return try self.transactionsBusinessLogic.getTransactions(user: user, on: req)
+                }
+        }
+
+        return req.eventLoop.newSucceededFuture(result: .ok)
+    }
+
+    func addPublicRoutes(to router: Router) {
+        router.post(Routes.transactionPayload.rawValue, use: handlePayload)
+    }
+
+    func addRoutes(to router: Router) {
+        router.get(Routes.transactions.rawValue, use: index)
+        router.get(Routes.transactions.rawValue, Transaction.parameter, use: show)
+        router.post(Routes.transactions.rawValue, use: store)
+        router.put(Routes.transactions.rawValue, Transaction.parameter, use: replace)
+        router.delete(Routes.transactions.rawValue, Transaction.parameter, use: destroy)
     }
 
 }

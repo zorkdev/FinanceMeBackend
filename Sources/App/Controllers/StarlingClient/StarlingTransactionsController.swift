@@ -9,40 +9,26 @@ final class StarlingTransactionsController {
 
     func getTransactions(user: User,
                          from: Date? = nil,
-                         to: Date? = nil) throws -> [Transaction] {
-        guard let token = user.sToken else { throw Abort.serverError }
+                         to: Date? = nil,
+                         on con: Container) throws -> Future<[Transaction]> {
+        guard let token = user.sToken else { throw Abort(.internalServerError) }
 
-        var parameters = [String: NodeRepresentable]()
+        var parameters = StarlingParameters()
 
         if let from = from {
-            parameters[StarlingParameters.from.rawValue] = Formatters.apiDate.string(from: from)
+            parameters.from = Formatters.apiDate.string(from: from)
         }
 
         if let to = to {
-            parameters[StarlingParameters.to.rawValue] = Formatters.apiDate.string(from: to)
+            parameters.to = Formatters.apiDate.string(from: to)
         }
 
-        let response = try StarlingClientController.shared.performRequest(method: .get,
-                                                                          endpoint: .getTransactions,
-                                                                          token: token,
-                                                                          parameters: parameters)
-
-        guard let json = response.json,
-            let halResponse = json[Constants.embeddedKey],
-            let transactionsList = halResponse[Constants.transactionsKey],
-            let transactionsArray = transactionsList.array else {
-            throw Abort.serverError
-        }
-
-        var transactions = [Transaction]()
-
-        for item in transactionsArray {
-            let transaction = try Transaction(json: item)
-            guard try Transaction.find(transaction.id) == nil else { continue }
-            transactions.append(transaction)
-        }
-
-        return transactions
+        return try StarlingClientController().get(endpoint: .getTransactions,
+                                                  token: token,
+                                                  parameters: parameters,
+                                                  on: con)
+            .flatMap { try $0.content.decode(HALResponse<TransactionList>.self) }
+            .map { $0.embedded.transactions.map { Transaction(from: $0) } }
     }
 
 }

@@ -5,21 +5,22 @@ final class ReconciliationController {
     private let spendingBusinessLogic = SpendingBusinessLogic()
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
 
-    func store(_ req: Request) throws -> ResponseRepresentable {
-        let users = try User.all()
-
-        for user in users {
-            try? transactionsBusinessLogic.updateTransactions(user: user)
-            try? spendingBusinessLogic.calculateEndOfMonthBalance(for: user)
+    func store(_ req: Request) throws -> Future<HTTPStatus> {
+        _ = User
+            .query(on: req)
+            .all()
+            .flatMap { users in
+                return try users.map { user in
+                    return try self.transactionsBusinessLogic.updateTransactions(user: user, on: req)
+                        .and(try self.spendingBusinessLogic.calculateEndOfMonthBalance(for: user, on: req))
+                    }.flatten(on: req)
         }
 
-        return Response(status: .ok)
+        return req.eventLoop.newSucceededFuture(result: .ok)
     }
 
-    func addRoutes(to group: RouteBuilder) {
-        group.add(.post, Routes.reconcile.rawValue, value: store)
+    func addRoutes(to router: Router) {
+        router.post(Routes.reconcile.rawValue, use: store)
     }
 
 }
-
-extension ReconciliationController: EmptyInitializable {}

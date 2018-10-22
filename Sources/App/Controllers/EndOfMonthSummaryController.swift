@@ -1,34 +1,20 @@
 import Vapor
 
-final class EndOfMonthSummaryController: ResourceRepresentable {
-
-    private struct Constants {
-        static let currentMonthSummaryKey = "currentMonthSummary"
-        static let endOfMonthSummariesKey = "endOfMonthSummaries"
-    }
+final class EndOfMonthSummaryController {
 
     private let spendingBusinessLogic = SpendingBusinessLogic()
 
-    func index(_ req: Request) throws -> ResponseRepresentable {
-        let user = try req.authUser()
-        let currentMonthSummary = try spendingBusinessLogic.calculateCurrentMonthSummary(for: user)
-        let endOfMonthSummaries = try user.endOfMonthSummaries.all()
-        var json = JSON()
-        try json.set(Constants.currentMonthSummaryKey, currentMonthSummary)
-        try json.set(Constants.endOfMonthSummariesKey, endOfMonthSummaries)
-        return json
+    func index(_ req: Request) throws -> Future<EndOfMonthSummariesResponse> {
+        let user = try req.requireAuthenticated(User.self)
+
+        return try spendingBusinessLogic.calculateCurrentMonthSummary(for: user, on: req)
+            .and(try user.endOfMonthSummaries.query(on: req).all())
+            .map { EndOfMonthSummariesResponse(currentMonthSummary: $0,
+                                               endOfMonthSummaries: $1.map { $0.response }) }
     }
 
-    func makeResource() -> Resource<Transaction> {
-        return Resource(
-            index: index
-        )
-    }
-
-    func addRoutes(to group: RouteBuilder) throws {
-        try group.resource(Routes.endOfMonthSummaries.rawValue, EndOfMonthSummaryController.self)
+    func addRoutes(to router: Router) {
+        router.get(Routes.endOfMonthSummaries.rawValue, use: index)
     }
 
 }
-
-extension EndOfMonthSummaryController: EmptyInitializable {}

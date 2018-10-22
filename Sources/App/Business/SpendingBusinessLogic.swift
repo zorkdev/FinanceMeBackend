@@ -1,4 +1,5 @@
 import Vapor
+import FluentPostgreSQL
 
 final class SpendingBusinessLogic {
 
@@ -9,114 +10,140 @@ final class SpendingBusinessLogic {
 
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
 
-    func calculateEndOfMonthBalance(for user: User) throws {
-        let lastBalance = try user.endOfMonthSummaries
-            .makeQuery()
-            .sort(EndOfMonthSummary.Constants.createdKey, .descending)
-            .limit(1)
+    func calculateEndOfMonthBalance(for user: User, on conn: DatabaseConnectable) throws -> Future<Void> {
+        guard let id = user.id else { throw Abort(.internalServerError) }
+
+        return try user.endOfMonthSummaries
+            .query(on: conn)
+            .sort(\.created, .descending)
             .first()
+            .flatMap { lastBalance in
+                let to: Date
+                let from: Date
 
-        let to: Date
-        let from: Date
+                if let lastBalance = lastBalance {
+                    guard lastBalance.created != Date().next(day: user.payday, direction: .backward) else {
+                        return conn.eventLoop.newSucceededFuture(result: ())
+                    }
+                    from = lastBalance.created
+                    to = from.startOfDay.next(day: user.payday, direction: .forward)
+                } else {
+                    to = Date().startOfDay.next(day: user.payday, direction: .backward)
+                    from = to.startOfDay.next(day: user.payday, direction: .backward)
+                }
 
-        if let lastBalance = lastBalance {
-            guard lastBalance.created != Date().next(day: user.payday, direction: .backward) else { return }
-            from = lastBalance.created
-            to = from.startOfDay.next(day: user.payday, direction: .forward)
-        } else {
-            to = Date().startOfDay.next(day: user.payday, direction: .backward)
-            from = to.startOfDay.next(day: user.payday, direction: .backward)
+                return try self.transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+                    .flatMap { regularTransactions in
+                        return try user.transactions
+                            .query(on: conn)
+                            .filter(\.source != .externalRegularOutbound)
+                            .filter(\.source != .externalRegularInbound)
+                            .filter(\.source != .stripeFunding)
+                            .filter(\.source != .directDebit)
+                            .filter(\.source != .internalTransfer)
+                            .filter(\.narrative != Constants.internalTransferNarrative)
+                            .filter(\.created >= from)
+                            .filter(\.created < to)
+                            .all()
+                            .map { $0.filter(regularTransactions: regularTransactions) }
+                            .flatMap { transactions in
+                                var balance = self.calculateAmountSum(from: transactions + regularTransactions)
+
+                                if let lastBalance = lastBalance,
+                                    lastBalance.balance < 0 {
+                                    balance += lastBalance.balance
+                                }
+
+                                let endOfMonthSummary = EndOfMonthSummary(created: to,
+                                                                          balance: balance,
+                                                                          userID: id)
+                                return endOfMonthSummary.save(on: conn).transform(to: ())
+                        }
+                }
         }
-
-        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
-
-        let transactions = try user.transactions
-            .makeQuery()
-            .and { group in
-                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
-                try group.filter(Transaction.Constants.createdKey, .lessThan, to)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularInbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularOutbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.stripeFunding.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.directDebit.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.internalTransfer.rawValue)
-                try group.filter(Transaction.Constants.narrativeKey,
-                                 .notEquals,
-                                 Constants.internalTransferNarrative)
-            }
-            .all()
-            .filter(regularTransactions: regularTransactions)
-
-        var balance = calculateAmountSum(from: transactions + regularTransactions)
-
-        if let lastBalance = lastBalance,
-            lastBalance.balance < 0 {
-            balance += lastBalance.balance
-        }
-
-        let endOfMonthSummary = EndOfMonthSummary(created: to,
-                                                  balance: balance,
-                                                  user: user)
-        try endOfMonthSummary.save()
     }
 
-    func calculateAllowance(for user: User) throws -> Double {
-        let spendingLimit = try calculateSpendingLimit(for: user)
-        let spendingThisWeek = try calculateSpendingThisWeek(for: user)
-        let remainingTravel = try calculateRemainingTravelSpendingThisWeek(for: user)
-        let carryOver = try calculateCarryOverFromPreviousWeeks(for: user, limit: spendingLimit)
-        let weeklyLimit = self.calculateWeeklyLimit(for: user, limit: spendingLimit, carryOver: carryOver)
-        let remainingAllowance = weeklyLimit + spendingThisWeek + remainingTravel
+    func calculateAllowance(for user: User, on req: Request) throws -> Future<Double> {
+        let spendingLimitFuture = try calculateSpendingLimit(for: user, on: req)
+        let spendingThisWeekFuture = try self.calculateSpendingThisWeek(for: user, on: req)
+        let remainingTravelFuture = try self.calculateRemainingTravelSpendingThisWeek(for: user, on: req)
 
-        logger.info("Allowance")
-        logger.info("Limit: \(spendingLimit)")
-        logger.info("This week: \(spendingThisWeek)")
-        logger.info("Travel: \(remainingTravel)")
-        logger.info("Carry over: \(carryOver)")
-        logger.info("Weekly limit: \(weeklyLimit)")
-        logger.info("Remaining allowance: \(remainingAllowance)")
+        return [spendingLimitFuture,
+                spendingThisWeekFuture,
+                remainingTravelFuture]
+            .flatten(on: req)
+            .flatMap { results in
+                let spendingLimit = results[0]
+                let spendingThisWeek = results[1]
+                let remainingTravel = results[2]
 
-        return remainingAllowance
+                return try self.calculateCarryOverFromPreviousWeeks(for: user,
+                                                                    limit: spendingLimit,
+                                                                    on: req)
+                    .map { carryOver -> Double in
+                        let weeklyLimit = self.calculateWeeklyLimit(for: user,
+                                                                    limit: spendingLimit,
+                                                                    carryOver: carryOver)
+                        let remainingAllowance = weeklyLimit + spendingThisWeek + remainingTravel
+
+                        let logger = try req.make(Logger.self)
+                        logger.info("Allowance")
+                        logger.info("Limit: \(spendingLimit)")
+                        logger.info("This week: \(spendingThisWeek)")
+                        logger.info("Travel: \(remainingTravel)")
+                        logger.info("Carry over: \(carryOver)")
+                        logger.info("Weekly limit: \(weeklyLimit)")
+                        logger.info("Remaining allowance: \(remainingAllowance)")
+
+                        return remainingAllowance
+                }
+        }
     }
 
-    func calculateCurrentMonthSummary(for user: User) throws -> CurrentMonthSummary {
+    func calculateCurrentMonthSummary(for user: User, on req: Request) throws -> Future<CurrentMonthSummary> {
         let now = Date()
         let nextPayday = now.startOfDay.next(day: user.payday, direction: .forward)
 
-        let spendingLimit = try calculateSpendingLimit(for: user)
-        let spendingThisMonth = try calculateSpendingThisMonth(for: user)
-        let dailySpendingAverage = try calculateDailySpendingAverage(for: user)
-        let remainingTravel = try calculateRemainingTravelSpendingThisMonth(for: user)
-        let spendingTotal = try calculateSpendingTotalThisMonth(for: user)
-        let allowance = spendingLimit + spendingThisMonth + remainingTravel
+        let spendingLimitFuture = try calculateSpendingLimit(for: user, on: req)
+        let spendingThisMonthFuture = try calculateSpendingThisMonth(for: user, on: req)
+        let dailySpendingAverageFuture = try calculateDailySpendingAverage(for: user, on: req)
+        let remainingTravelFuture = try calculateRemainingTravelSpendingThisMonth(for: user, on: req)
+        let spendingTotalFuture = try calculateSpendingTotalThisMonth(for: user, on: req)
 
-        let remainingDays = Double(nextPayday.numberOfDays(from: now.startOfDay.add(day: 1)))
-        let forecast = spendingLimit + spendingThisMonth + dailySpendingAverage * remainingDays
+        return [spendingLimitFuture,
+                spendingThisMonthFuture,
+                dailySpendingAverageFuture,
+                remainingTravelFuture,
+                spendingTotalFuture]
+            .flatten(on: req)
+            .map { results in
+                let spendingLimit = results[0]
+                let spendingThisMonth = results[1]
+                let dailySpendingAverage = results[2]
+                let remainingTravel = results[3]
+                let spendingTotal = results[4]
 
-        logger.info("Monthly allowance")
-        logger.info("Limit: \(spendingLimit)")
-        logger.info("This month: \(spendingThisMonth)")
-        logger.info("Travel: \(remainingTravel)")
-        logger.info("Remaining allowance: \(allowance)")
+                let allowance = spendingLimit + spendingThisMonth + remainingTravel
 
-        logger.info("Monthly forecast")
-        logger.info("Daily spending: \(dailySpendingAverage)")
-        logger.info("Forecast: \(forecast)")
+                let remainingDays = Double(nextPayday.numberOfDays(from: now.startOfDay.add(day: 1)))
+                let forecast = spendingLimit + spendingThisMonth + dailySpendingAverage * remainingDays
 
-        let currentmonthSummary = CurrentMonthSummary(allowance: allowance,
-                                                      forecast: forecast,
-                                                      spending: spendingTotal)
-        return currentmonthSummary
+                let logger = try req.make(Logger.self)
+                logger.info("Monthly allowance")
+                logger.info("Limit: \(spendingLimit)")
+                logger.info("This month: \(spendingThisMonth)")
+                logger.info("Travel: \(remainingTravel)")
+                logger.info("Remaining allowance: \(allowance)")
+
+                logger.info("Monthly forecast")
+                logger.info("Daily spending: \(dailySpendingAverage)")
+                logger.info("Forecast: \(forecast)")
+
+                let currentmonthSummary = CurrentMonthSummary(allowance: allowance,
+                                                              forecast: forecast,
+                                                              spending: spendingTotal)
+                return currentmonthSummary
+        }
     }
 
 }
@@ -148,300 +175,227 @@ extension SpendingBusinessLogic {
         return newWeeklyLimit
     }
 
-    private func calculateSpendingThisWeek(for user: User) throws -> Double {
+    private func calculateSpendingThisWeek(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
         let now = Date().startOfDay
         let previousPayday = now.next(day: user.payday, direction: .backward)
         let startOfWeek = max(previousPayday, now.startOfWeek)
 
-        let spending = try calculateSpending(for: user, from: startOfWeek, withTravel: false)
-
-        return spending
+        return try calculateSpending(for: user, from: startOfWeek, withTravel: false, on: conn)
     }
 
-    private func calculateSpendingThisMonth(for user: User) throws -> Double {
+    private func calculateSpendingThisMonth(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
         let from = Date().startOfDay.next(day: user.payday, direction: .backward)
-        let spending = try calculateSpending(for: user, from: from, withTravel: true)
-
-        return spending
+        return try calculateSpending(for: user, from: from, withTravel: true, on: conn)
     }
 
-    private func calculateSpending(for user: User, from: Date, withTravel: Bool) throws -> Double {
+    private func calculateSpending(for user: User,
+                                   from: Date,
+                                   withTravel: Bool,
+                                   on conn: DatabaseConnectable) throws -> Future<Double> {
         let now = Date()
 
-        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
+        return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+            .flatMap { regularTransactions in
+                return try user.transactions
+                    .query(on: conn)
+                    .filter(\.source != .externalRegularOutbound)
+                    .filter(\.source != .externalRegularInbound)
+                    .filter(\.source != .stripeFunding)
+                    .filter(\.source != .directDebit)
+                    .filter(\.source != .internalTransfer)
+                    .filter(\.narrative != Constants.internalTransferNarrative)
+                    .filter(\.created >= from)
+                    .filter(\.created <= now)
+                    .filter(\.amount > -user.largeTransaction)
+                    .filter(\.amount < user.largeTransaction)
+                    .all()
+                    .map { $0.filter(regularTransactions: regularTransactions) }
+                    .map { transactions in
+                        var filteredTransactions = transactions
+                        if withTravel == false {
+                            filteredTransactions = filteredTransactions
+                                .filter({ !($0.narrative == Constants.travelNarrative &&
+                                    $0.created > now.startOfDay) })
+                        }
 
-        var transactions = try user.transactions
-            .makeQuery()
-            .and { group in
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularOutbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularInbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.stripeFunding.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.directDebit.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.internalTransfer.rawValue)
-                try group.filter(Transaction.Constants.narrativeKey,
-                                 .notEquals,
-                                 Constants.internalTransferNarrative)
-                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
-                try group.filter(Transaction.Constants.createdKey, .lessThanOrEquals, now)
-                try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
-                try group.filter(Transaction.Constants.amountKey, .lessThan, user.largeTransaction)
-            }
-            .all()
-            .filter(regularTransactions: regularTransactions)
-
-        if withTravel == false {
-            transactions = transactions
-                .filter({ !($0.narrative == Constants.travelNarrative &&
-                    $0.created > now.startOfDay) })
+                        return self.calculateAmountSum(from: transactions)
+                }
         }
-
-        return calculateAmountSum(from: transactions)
     }
 
-    private func calculateSpendingTotalThisMonth(for user: User) throws -> Double {
+    private func calculateSpendingTotalThisMonth(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
         let from = Date().startOfDay.next(day: user.payday, direction: .backward)
 
-        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
-
-        let transactions = try user.transactions
-            .makeQuery()
-            .and { group in
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularOutbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularInbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.stripeFunding.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.directDebit.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.internalTransfer.rawValue)
-                try group.filter(Transaction.Constants.narrativeKey,
-                                 .notEquals,
-                                 Constants.internalTransferNarrative)
-                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
-            }
-            .all()
-            .filter(regularTransactions: regularTransactions)
-
-        return calculateAmountSum(from: transactions)
+        return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+            .flatMap { regularTransactions in
+                return try user.transactions
+                    .query(on: conn)
+                    .filter(\.source != .externalRegularOutbound)
+                    .filter(\.source != .externalRegularInbound)
+                    .filter(\.source != .stripeFunding)
+                    .filter(\.source != .directDebit)
+                    .filter(\.source != .internalTransfer)
+                    .filter(\.narrative != Constants.internalTransferNarrative)
+                    .filter(\.created >= from)
+                    .all()
+                    .map { $0.filter(regularTransactions: regularTransactions) }
+                    .map { self.calculateAmountSum(from: $0) }
+        }
     }
 
-    private func calculateSpendingLimit(for user: User) throws -> Double {
+    private func calculateSpendingLimit(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
         let now = Date()
         let from = now.startOfDay.next(day: user.payday, direction: .backward)
         let to = now
 
-        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
-
-        let largeTransactions = try user.transactions
-            .makeQuery()
-            .and { group in
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularOutbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularInbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.stripeFunding.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.directDebit.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.internalTransfer.rawValue)
-                try group.filter(Transaction.Constants.narrativeKey,
-                                 .notEquals,
-                                 Constants.internalTransferNarrative)
-                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, from)
-                try group.filter(Transaction.Constants.createdKey, .lessThan, to)
-            }.or { group in
-                try group.filter(Transaction.Constants.amountKey, .lessThanOrEquals, -user.largeTransaction)
-                try group.filter(Transaction.Constants.amountKey, .greaterThanOrEquals, user.largeTransaction)
-            }
-            .all()
-            .filter(regularTransactions: regularTransactions)
-
-        var carryOver = 0.0
-
-        if let lastBalance = try user.endOfMonthSummaries
-            .makeQuery()
-            .sort(EndOfMonthSummary.Constants.createdKey, .descending)
-            .limit(1)
-            .first(),
-            lastBalance.balance < 0 {
-            carryOver = lastBalance.balance
+        return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+            .flatMap { regularTransactions in
+                return try user.transactions
+                    .query(on: conn)
+                    .filter(\.source != .externalRegularOutbound)
+                    .filter(\.source != .externalRegularInbound)
+                    .filter(\.source != .stripeFunding)
+                    .filter(\.source != .directDebit)
+                    .filter(\.source != .internalTransfer)
+                    .filter(\.narrative != Constants.internalTransferNarrative)
+                    .filter(\.created >= from)
+                    .filter(\.created < to)
+                    .filter(\.narrative != Constants.internalTransferNarrative)
+                    .filter(\.narrative != Constants.internalTransferNarrative)
+                    .group(.or) { group in
+                        group.filter(\.amount <= -user.largeTransaction)
+                            .filter(\.amount >= user.largeTransaction)
+                    }
+                    .all()
+                    .map { $0.filter(regularTransactions: regularTransactions) }
+                    .flatMap { largeTransactions in
+                        return try user.endOfMonthSummaries
+                            .query(on: conn)
+                            .sort(\.created, .descending)
+                            .first().map { lastBalance in
+                                var carryOver = 0.0
+                                if let lastBalance = lastBalance?.balance, lastBalance < 0 {
+                                    carryOver = lastBalance
+                                }
+                                return self.calculateAmountSum(from: regularTransactions + largeTransactions) + carryOver
+                        }
+                }
         }
-
-        return calculateAmountSum(from: regularTransactions + largeTransactions) + carryOver
     }
 
-    private func calculateCarryOverFromPreviousWeeks(for user: User, limit: Double) throws -> Double {
+    private func calculateCarryOverFromPreviousWeeks(for user: User,
+                                                     limit: Double,
+                                                     on conn: DatabaseConnectable) throws -> Future<Double> {
         let now = Date().startOfDay
         let startOfWeek = now.startOfWeek
         let nextPayday = now.next(day: user.payday, direction: .forward)
         let payday = now.next(day: user.payday, direction: .backward)
-        guard payday < startOfWeek else { return 0 }
+        guard payday < startOfWeek else { return conn.eventLoop.newSucceededFuture(result: 0) }
         let daysSincePayday = startOfWeek.numberOfDays(from: payday)
         let daysInMonth = nextPayday.numberOfDays(from: payday)
 
-        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
+        return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+            .flatMap { regularTransactions in
+                return try user.transactions
+                    .query(on: conn)
+                    .filter(\.source != .externalRegularOutbound)
+                    .filter(\.source != .externalRegularInbound)
+                    .filter(\.source != .stripeFunding)
+                    .filter(\.source != .directDebit)
+                    .filter(\.source != .internalTransfer)
+                    .filter(\.narrative != Constants.internalTransferNarrative)
+                    .filter(\.amount > -user.largeTransaction)
+                    .filter(\.amount < user.largeTransaction)
+                    .filter(\.created >= payday)
+                    .filter(\.created < startOfWeek)
+                    .all()
+                    .map { $0.filter(regularTransactions: regularTransactions) }
+                    .map { transactions in
+                        let spending = self.calculateAmountSum(from: transactions)
+                        let dailyLimit = limit / Double(daysInMonth)
+                        let carryOver = dailyLimit * Double(daysSincePayday) + spending
 
-        let transactions = try user.transactions
-            .makeQuery()
-            .and { group in
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularOutbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularInbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.stripeFunding.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.directDebit.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.internalTransfer.rawValue)
-                try group.filter(Transaction.Constants.narrativeKey,
-                                 .notEquals,
-                                 Constants.internalTransferNarrative)
-                try group.filter(Transaction.Constants.amountKey, .greaterThan, -user.largeTransaction)
-                try group.filter(Transaction.Constants.amountKey, .lessThan, user.largeTransaction)
-                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, payday)
-                try group.filter(Transaction.Constants.createdKey, .lessThan, startOfWeek)
-            }
-            .all()
-            .filter(regularTransactions: regularTransactions)
-
-        let spending = calculateAmountSum(from: transactions)
-        let dailyLimit = limit / Double(daysInMonth)
-        let carryOver = dailyLimit * Double(daysSincePayday) + spending
-
-        return carryOver < 0 ? carryOver : 0
+                        return carryOver < 0 ? carryOver : 0
+                }
+        }
     }
 
-    private func calculateDailySpendingAverage(for user: User) throws -> Double {
+    private func calculateDailySpendingAverage(for user: User,
+                                               on conn: DatabaseConnectable) throws -> Future<Double> {
         let today = Date().startOfDay
 
-        let regularTransactions = try transactionsBusinessLogic.getRegularTransactions(for: user)
+        return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+            .flatMap { regularTransactions in
+                return try user.transactions
+                    .query(on: conn)
+                    .filter(\.source != .externalRegularOutbound)
+                    .filter(\.source != .externalRegularInbound)
+                    .filter(\.source != .stripeFunding)
+                    .filter(\.source != .directDebit)
+                    .filter(\.source != .internalTransfer)
+                    .filter(\.narrative != Constants.internalTransferNarrative)
+                    .filter(\.created >= user.startDate)
+                    .filter(\.created < today)
+                    .all()
+                    .map { $0.filter(regularTransactions: regularTransactions) }
+                    .map { transactions in
+                        var numberOfDays = today.add(day: -1).numberOfDays(from: user.startDate)
+                        numberOfDays = numberOfDays == 0 ? 0 : numberOfDays
+                        let amountSum = self.calculateAmountSum(from: transactions)
 
-        let transactions = try user.transactions
-            .makeQuery()
-            .and { group in
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularOutbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.externalRegularInbound.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.stripeFunding.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.directDebit.rawValue)
-                try group.filter(Transaction.Constants.sourceKey,
-                                 .notEquals,
-                                 TransactionSource.internalTransfer.rawValue)
-                try group.filter(Transaction.Constants.narrativeKey,
-                                 .notEquals,
-                                 Constants.internalTransferNarrative)
-                try group.filter(Transaction.Constants.createdKey, .greaterThanOrEquals, user.startDate)
-                try group.filter(Transaction.Constants.createdKey, .lessThan, today)
-            }
-            .all()
-            .filter(regularTransactions: regularTransactions)
-
-        var numberOfDays = today.add(day: -1).numberOfDays(from: user.startDate)
-        numberOfDays = numberOfDays == 0 ? 0 : numberOfDays
-        let amountSum = calculateAmountSum(from: transactions)
-
-        return amountSum / Double(numberOfDays)
+                        return amountSum / Double(numberOfDays)
+                }
+        }
     }
 
-    private func calculateRemainingTravelSpendingThisWeek(for user: User) throws -> Double {
+    private func calculateRemainingTravelSpendingThisWeek(for user: User,
+                                                          on conn: DatabaseConnectable) throws -> Future<Double> {
         let today = Date().startOfDay
         let nextPayday = today.next(day: user.payday, direction: .forward)
         let daysUntilPayday = nextPayday.numberOfDays(from: today.startOfDay)
         let daysUntilEndOfWeek = today.endOfWeek.numberOfDays(from: today)
-        let remainingDays = min(daysUntilEndOfWeek, daysUntilPayday)
-        let dailySpending = try calculateDailyTravelSpending(for: user)
+        let remainingDays = Double(min(daysUntilEndOfWeek, daysUntilPayday))
 
-        return Double(remainingDays) * dailySpending
+        return try calculateDailyTravelSpending(for: user, on: conn)
+            .map { $0 * remainingDays }
     }
 
-    private func calculateRemainingTravelSpendingThisMonth(for user: User) throws -> Double {
+    private func calculateRemainingTravelSpendingThisMonth(for user: User,
+                                                           on conn: DatabaseConnectable) throws -> Future<Double> {
         let today = Date().startOfDay
         let payday = today.next(day: user.payday, direction: .forward)
         let remainingDays = Double(payday.numberOfDays(from: today.add(day: 1)))
-        let dailySpending = try calculateDailyTravelSpending(for: user)
 
-        return remainingDays * dailySpending
+        return try calculateDailyTravelSpending(for: user, on: conn)
+            .map { $0 * remainingDays }
     }
 
-    private func calculateDailyTravelSpending(for user: User) throws -> Double {
+    private func calculateDailyTravelSpending(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
         let today = Date().startOfDay
 
-        let transactions = try user.transactions
-            .makeQuery()
-            .and { group in
-                try group.filter(Transaction.Constants.narrativeKey, .equals, Constants.travelNarrative)
-                try group.filter(Transaction.Constants.createdKey, .lessThan, today)
-            }
-            .sort(Transaction.Constants.createdKey, .ascending)
+        return try user.transactions
+            .query(on: conn)
+            .filter(\.narrative == Constants.travelNarrative)
+            .filter(\.created < today)
+            .sort(\.created, .ascending)
             .all()
+            .map { transactions in
+                let firstDate = transactions.first?.created.startOfDay ?? today
+                let numberOfDays = Double(today.numberOfDays(from: firstDate))
+                guard numberOfDays != 0 else { return 0 }
 
-        let firstDate = transactions.first?.created.startOfDay ?? today
-        let numberOfDays = Double(today.numberOfDays(from: firstDate))
-        guard numberOfDays != 0 else { return 0 }
+                let dailyTravelSpending = transactions
+                    .flatMap ({ $0.amount })
+                    .reduce(0, +) / numberOfDays
 
-        let dailyTravelSpending = transactions
-            .flatMap ({ $0.amount })
-            .reduce(0, +) / numberOfDays
-
-        return dailyTravelSpending
+                return dailyTravelSpending
+        }
     }
 
     private func calculateAmountSum(from transactions: [Transaction]) -> Double {
         return transactions
             .flatMap({ $0.amount })
             .reduce(0, +)
-    }
-
-    private func filterTransactions(transactions: [Transaction],
-                                    regularTransactions: [Transaction]) -> [Transaction] {
-        let mappedRegularTransactions: [(String, Double)] = regularTransactions
-            .flatMap { transaction in
-                guard let narrative = transaction.internalNarrative,
-                    let amount = transaction.internalAmount else { return nil }
-                return (narrative, amount)
-        }
-
-        return transactions.filter { transaction in
-            let mappedTransaction = (transaction.narrative, transaction.amount)
-            return mappedRegularTransactions
-                .contains { $0.0 == mappedTransaction.0 && $0.1 == mappedTransaction.1 }
-        }
     }
 
 }

@@ -1,86 +1,63 @@
 import Vapor
-import FluentProvider
-import Crypto
+import FluentPostgreSQL
+import Authentication
 
-final class Token: Model {
+final class Token: PostgreSQLUUIDModel {
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case token
+        case userID = "user_id"
+    }
+
+    static let entity = "tokens"
 
     private struct Constants {
-        static let idKey = "id"
-        static let tokenKey = "token"
-        static let userIdKey = "userId"
-
         static let tokenBytes = 48
     }
 
-    let storage = Storage()
+    var id: UUID?
+    var token: String
 
-    let token: String
-    let userId: Identifier?
+    var userID: User.ID
 
     var user: Parent<Token, User> {
-        return parent(id: userId)
+        return parent(\.userID)
     }
 
-    init(token: String,
-         user: User) {
+    init(id: UUID? = nil,
+         token: String,
+         userID: User.ID) {
+        self.id = id
         self.token = token
-        self.userId = user.id
-    }
-
-    init(row: Row) throws {
-        token = try row.get(Constants.tokenKey)
-        userId = try row.get(User.foreignIdKey)
-    }
-
-    func makeRow() throws -> Row {
-        var row = Row()
-        try row.set(Constants.tokenKey, token)
-        try row.set(User.foreignIdKey, userId)
-        return row
+        self.userID = userID
     }
 
 }
 
-extension Token: Preparation {
+extension Token: Authentication.Token {
 
-    static func prepare(_ database: Database) throws {
-        try database.create(self) { builder in
-            builder.id()
-            builder.string(Constants.tokenKey)
-            builder.parent(User.self)
-        }
+    typealias UserType = User
+
+    static var userIDKey: WritableKeyPath<Token, User.ID> {
+        return \.userID
     }
 
-    static func revert(_ database: Database) throws {
-        try database.delete(self)
+    static var tokenKey: WritableKeyPath<Token, String> {
+        return \.token
     }
-
-}
-
-extension Token: JSONConvertible {
-
-    convenience init(json: JSON) throws {
-        let userId: Identifier = try json.get(Constants.userIdKey)
-        guard let user = try User.find(userId) else { throw Abort.badRequest }
-        try self.init(token: json.get(Constants.tokenKey),
-                      user: user)
-    }
-
-    func makeJSON() throws -> JSON {
-        var json = JSON()
-        try json.set(Constants.tokenKey, token)
-        return json
-    }
-
-}
-
-extension Token: ResponseRepresentable {}
-
-extension Token {
 
     static func generate(for user: User) throws -> Token {
-        let random = try Crypto.Random.bytes(count: Constants.tokenBytes)
-        return Token(token: random.base64Encoded.makeString(), user: user)
+        let random = try CryptoRandom().generateData(count: Constants.tokenBytes)
+        guard let string = String(bytes: random.base64EncodedData(), encoding: .ascii),
+            let userID = user.id else {
+            throw Abort(.internalServerError)
+        }
+        return Token(token: string, userID: userID)
     }
 
 }
+
+extension Token: Migration {}
+extension Token: Content {}
+extension Token: Parameter {}

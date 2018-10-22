@@ -11,6 +11,13 @@ extension Date {
 
     static let daysInWeek = 7
 
+    static let iso8601MillisecFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSX"
+        return formatter
+    }()
+
     var day: Int {
         return calendar.component(.day, from: self)
     }

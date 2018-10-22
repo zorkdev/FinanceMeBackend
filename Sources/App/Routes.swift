@@ -1,5 +1,5 @@
 import Vapor
-import AuthProvider
+import Authentication
 
 enum Routes: String {
 
@@ -16,27 +16,25 @@ enum Routes: String {
 
 }
 
-extension Droplet {
-    func setupRoutes() throws {
-        get(Routes.root.rawValue) { _ in
-            return try self.view.make(Routes.index.rawValue)
-        }
-
-        let apiGroup = grouped(Routes.api.rawValue)
-        let tokenGroup = apiGroup.grouped([TokenAuthenticationMiddleware(User.self)])
-
-        let userController = UserController()
-        userController.addRoutes(to: tokenGroup)
-        userController.addPublicRoutes(to: apiGroup)
-
-        let transactionController = TransactionController()
-        try transactionController.addRoutes(to: tokenGroup)
-        transactionController.addPublicRoutes(to: apiGroup)
-
-        let reconciliationController = ReconciliationController()
-        reconciliationController.addRoutes(to: apiGroup)
-
-        let endOfMonthSummaryController = EndOfMonthSummaryController()
-        try endOfMonthSummaryController.addRoutes(to: tokenGroup)
+public func routes(_ router: Router) throws {
+    router.get { req in
+        return req.redirect(to: "index.html")
     }
+
+    let apiGroup = router.grouped(Routes.api.rawValue)
+    let tokenGroup = apiGroup.grouped(User.tokenAuthMiddleware())
+
+    let userController = UserController()
+    userController.addRoutes(to: tokenGroup)
+    userController.addPublicRoutes(to: apiGroup)
+
+    let transactionController = TransactionController()
+    transactionController.addRoutes(to: tokenGroup)
+    transactionController.addPublicRoutes(to: apiGroup)
+
+    let reconciliationController = ReconciliationController()
+    reconciliationController.addRoutes(to: apiGroup)
+
+    let endOfMonthSummaryController = EndOfMonthSummaryController()
+    endOfMonthSummaryController.addRoutes(to: tokenGroup)
 }
