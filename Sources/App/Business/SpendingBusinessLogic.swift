@@ -383,18 +383,13 @@ extension SpendingBusinessLogic {
                 let firstDate = transactions.first?.created.startOfDay ?? today
                 let numberOfDays = Double(today.numberOfDays(from: firstDate))
                 guard numberOfDays != 0 else { return 0 }
-
-                let dailyTravelSpending = transactions
-                    .flatMap ({ $0.amount })
-                    .reduce(0, +) / numberOfDays
-
-                return dailyTravelSpending
+                return self.calculateAmountSum(from: transactions) / numberOfDays
         }
     }
 
     private func calculateAmountSum(from transactions: [Transaction]) -> Double {
         return transactions
-            .flatMap({ $0.amount })
+            .compactMap({ $0.amount })
             .reduce(0, +)
     }
 
@@ -403,7 +398,7 @@ extension SpendingBusinessLogic {
 extension Array where Element: Transaction {
     func filter(regularTransactions: [Transaction]) -> [Transaction] {
         let mappedRegularTransactions: [(String, Double?)] = regularTransactions
-            .flatMap { transaction in
+            .compactMap { transaction in
                 guard let narrative = transaction.internalNarrative else { return nil }
                 return (narrative, transaction.internalAmount)
         }
