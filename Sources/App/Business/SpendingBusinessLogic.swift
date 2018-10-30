@@ -6,6 +6,7 @@ final class SpendingBusinessLogic {
     private struct Constants {
         static let travelNarrative = "TfL"
         static let internalTransferNarrative = "INTERNAL TRANSFER"
+        static let internalTransferGoalNarrative = "💸 Monthly Cash"
     }
 
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
@@ -40,7 +41,7 @@ final class SpendingBusinessLogic {
                             .filter(\.source != .externalRegularInbound)
                             .filter(\.source != .stripeFunding)
                             .filter(\.source != .directDebit)
-                            .filter(\.source != .internalTransfer)
+                            .filter(\.narrative != Constants.internalTransferGoalNarrative)
                             .filter(\.narrative != Constants.internalTransferNarrative)
                             .filter(\.created >= from)
                             .filter(\.created < to)
@@ -202,7 +203,7 @@ extension SpendingBusinessLogic {
                     .filter(\.source != .externalRegularInbound)
                     .filter(\.source != .stripeFunding)
                     .filter(\.source != .directDebit)
-                    .filter(\.source != .internalTransfer)
+                    .filter(\.narrative != Constants.internalTransferGoalNarrative)
                     .filter(\.narrative != Constants.internalTransferNarrative)
                     .filter(\.created >= from)
                     .filter(\.created <= now)
@@ -234,7 +235,7 @@ extension SpendingBusinessLogic {
                     .filter(\.source != .externalRegularInbound)
                     .filter(\.source != .stripeFunding)
                     .filter(\.source != .directDebit)
-                    .filter(\.source != .internalTransfer)
+                    .filter(\.narrative != Constants.internalTransferGoalNarrative)
                     .filter(\.narrative != Constants.internalTransferNarrative)
                     .filter(\.created >= from)
                     .all()
@@ -256,12 +257,10 @@ extension SpendingBusinessLogic {
                     .filter(\.source != .externalRegularInbound)
                     .filter(\.source != .stripeFunding)
                     .filter(\.source != .directDebit)
-                    .filter(\.source != .internalTransfer)
+                    .filter(\.narrative != Constants.internalTransferGoalNarrative)
                     .filter(\.narrative != Constants.internalTransferNarrative)
                     .filter(\.created >= from)
                     .filter(\.created < to)
-                    .filter(\.narrative != Constants.internalTransferNarrative)
-                    .filter(\.narrative != Constants.internalTransferNarrative)
                     .group(.or) { group in
                         group.filter(\.amount <= -user.largeTransaction)
                             .filter(\.amount >= user.largeTransaction)
@@ -302,7 +301,7 @@ extension SpendingBusinessLogic {
                     .filter(\.source != .externalRegularInbound)
                     .filter(\.source != .stripeFunding)
                     .filter(\.source != .directDebit)
-                    .filter(\.source != .internalTransfer)
+                    .filter(\.narrative != Constants.internalTransferGoalNarrative)
                     .filter(\.narrative != Constants.internalTransferNarrative)
                     .filter(\.amount > -user.largeTransaction)
                     .filter(\.amount < user.largeTransaction)
@@ -332,7 +331,7 @@ extension SpendingBusinessLogic {
                     .filter(\.source != .externalRegularInbound)
                     .filter(\.source != .stripeFunding)
                     .filter(\.source != .directDebit)
-                    .filter(\.source != .internalTransfer)
+                    .filter(\.narrative != Constants.internalTransferGoalNarrative)
                     .filter(\.narrative != Constants.internalTransferNarrative)
                     .filter(\.created >= user.startDate)
                     .filter(\.created < today)
