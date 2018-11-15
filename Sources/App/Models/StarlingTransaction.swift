@@ -23,6 +23,6 @@ struct StarlingTransaction: Content {
     let direction: TransactionDirection
     let created: Date
     let narrative: String
-    let source: TransactionSource
+    let source: TransactionSource?
 
 }

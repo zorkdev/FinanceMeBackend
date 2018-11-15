@@ -130,7 +130,7 @@ final class Transaction: PostgreSQLUUIDModel {
         self.direction = from.direction
         self.created = from.created
         self.narrative = from.narrative
-        self.source = from.source
+        self.source = from.source ?? .fasterPaymentsOut
         self.isArchived = false
         self.internalNarrative = nil
         self.internalAmount = nil
