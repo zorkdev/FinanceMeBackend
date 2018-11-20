@@ -12,7 +12,7 @@ final class ReconciliationController {
             .flatMap { users in
                 return try users.map { user in
                     return try self.transactionsBusinessLogic.updateTransactions(user: user, on: req)
-                        .and(try self.spendingBusinessLogic.calculateEndOfMonthBalance(for: user, on: req))
+                        .flatMap { _ in try self.spendingBusinessLogic.calculateEndOfMonthBalance(for: user, on: req) }
                     }.flatten(on: req)
         }
 
