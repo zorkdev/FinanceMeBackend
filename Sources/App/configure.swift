@@ -34,4 +34,10 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     jsonEncoder.dateEncodingStrategy = .formatted(Date.iso8601MillisecFormatter)
     contentConfig.use(encoder: jsonEncoder, for: .json)
     services.register(contentConfig)
+
+    let apnsCert = ProcessInfo.processInfo.environment["APNS_CERT"]!.data(using: .utf8)!
+    let directory = DirectoryConfig.detect()
+    let workingDirectory = directory.workDir
+    let saveURL = URL(fileURLWithPath: workingDirectory).appendingPathComponent("apns.pem", isDirectory: false)
+    try apnsCert.write(to: saveURL)
 }

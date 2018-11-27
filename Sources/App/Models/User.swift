@@ -52,6 +52,7 @@ final class User: PostgreSQLUUIDModel {
     var largeTransaction: Double
     var sToken: String?
     var customerUid: String?
+    var deviceTokens: [String]
 
     var token: Children<User, Token> {
         return children(\.userID)
@@ -82,7 +83,8 @@ final class User: PostgreSQLUUIDModel {
          startDate: Date,
          largeTransaction: Double,
          sToken: String?,
-         customerUid: String?) {
+         customerUid: String?,
+         deviceTokens: [String]) {
         self.id = id
         self.name = name
         self.email = email
@@ -92,6 +94,7 @@ final class User: PostgreSQLUUIDModel {
         self.largeTransaction = largeTransaction
         self.sToken = sToken
         self.customerUid = customerUid
+        self.deviceTokens = deviceTokens
     }
 
 }

@@ -4,6 +4,7 @@ import Authentication
 final class UserController {
 
     private let spendingBusinessLogic = SpendingBusinessLogic()
+    private let pushNotificationController = PushNotificationController()
 
     func showCurrentUser(_ req: Request) throws -> Future<UserResponse> {
         let user = try req.requireAuthenticated(User.self)
@@ -29,7 +30,8 @@ final class UserController {
                                 startDate: userRequest.startDate,
                                 largeTransaction: userRequest.largeTransaction,
                                 sToken: nil,
-                                customerUid: nil)
+                                customerUid: nil,
+                                deviceTokens: [])
 
                 return user.save(on: req)
                     .flatMap { user in
@@ -49,9 +51,12 @@ final class UserController {
                 user.payday = updatedUser.payday
                 user.startDate = updatedUser.startDate
                 return user.save(on: req)
-            }.flatMap { user in
-                return try self.spendingBusinessLogic.calculateAllowance(for: user, on: req)
-                    .map { allowance in
+            }.flatMap { try self.spendingBusinessLogic.calculateAllowance(for: $0, on: req) }
+            .flatMap { allowance in
+                return try self.pushNotificationController.sendNotification(user: user,
+                                                                            allowance: allowance,
+                                                                            on: req)
+                    .map { _ in
                         var userResponse = user.response
                         userResponse.allowance = allowance
                         return userResponse

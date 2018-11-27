@@ -4,6 +4,7 @@ import FluentPostgreSQL
 final class TransactionController {
 
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
+    private let pushNotificationController = PushNotificationController()
 
     func index(_ req: Request) throws -> Future<[TransactionResponse]> {
         let user = try req.requireAuthenticated(User.self)
@@ -37,7 +38,12 @@ final class TransactionController {
                                               internalAmount: nil,
                                               userID: userID)
 
-                return transaction.save(on: req).map { $0.response }
+                return transaction.save(on: req)
+                    .flatMap { transaction in
+                        return try self.pushNotificationController.sendNotification(user: user,
+                                                                                    on: req)
+                            .map { _ in return transaction.response }
+                }
         }
     }
 
@@ -55,7 +61,9 @@ final class TransactionController {
                         transaction.created = transactionResponse.created
                         transaction.narrative = transactionResponse.narrative
                         transaction.source = transactionResponse.source
-                        return transaction.save(on: req).map { $0.response }
+                        return transaction.save(on: req).flatMap { transaction in
+                            return try self.pushNotificationController.sendNotification(user: user, on: req)}
+                            .map { _ in return transaction.response }
                 }
             }
     }
@@ -68,12 +76,14 @@ final class TransactionController {
             .flatMap { transaction -> Future<Void> in
                 guard transaction.userID == userID else { throw Abort(.notFound) }
                 return transaction.delete(on: req)
-            }.transform(to: .ok)
+            }.flatMap { _ in return try self.pushNotificationController.sendNotification(user: user,
+                                                                                         on: req)}
+            .transform(to: .ok)
     }
 
     func handlePayload(_ req: Request) throws -> Future<HTTPStatus> {
         _ = try? req.content.decode(TransactionPayload.self)
-            .flatMap { payload -> Future<[Transaction]> in
+            .flatMap { payload -> Future<[Data]> in
                 return User
                     .query(on: req)
                     .filter(\.customerUid == payload.customerUid)
@@ -81,6 +91,8 @@ final class TransactionController {
                     .flatMap { user in
                         guard let user = user else { throw Abort(.notFound) }
                         return try self.transactionsBusinessLogic.getTransactions(user: user, on: req)
+                            .flatMap { _ in return try self.pushNotificationController.sendNotification(user: user,
+                                                                                                        on: req)}
                 }
         }
 
