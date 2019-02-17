@@ -40,6 +40,7 @@ enum TransactionSource: String, Equatable, Content, ReflectionDecodable {
     case interestPayment = "INTEREST_PAYMENT"
     case nostroDeposit = "NOSTRO_DEPOSIT"
     case overdraft = "OVERDRAFT"
+    case settleUp = "SETTLE_UP"
     case externalRegularInbound = "EXTERNAL_REGULAR_INBOUND"
     case externalRegularOutbound = "EXTERNAL_REGULAR_OUTBOUND"
     case externalInbound = "EXTERNAL_INBOUND"
