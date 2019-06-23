@@ -4,9 +4,9 @@ import PackageDescription
 let package = Package(
     name: "Zorkdev",
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", from: "3.0.0"),
-        .package(url: "https://github.com/vapor/fluent-postgresql.git", from: "1.0.0-rc.2.3"),
-        .package(url: "https://github.com/vapor/auth.git", from: "2.0.0-rc.4")
+        .package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "3.3.0")),
+        .package(url: "https://github.com/vapor/fluent-postgresql.git", .upToNextMajor(from: "1.0.0")),
+        .package(url: "https://github.com/vapor/auth.git", .upToNextMajor(from: "2.0.4"))
     ],
     targets: [
         .target(name: "App", dependencies: ["Authentication", "FluentPostgreSQL", "Vapor"]),
