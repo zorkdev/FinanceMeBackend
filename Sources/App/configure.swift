@@ -26,15 +26,6 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     migrations.add(model: User.self, database: .psql)
     services.register(migrations)
 
-    var contentConfig = ContentConfig.default()
-    let jsonDecoder = JSONDecoder()
-    jsonDecoder.dateDecodingStrategy = .formatted(Date.iso8601MillisecFormatter)
-    contentConfig.use(decoder: jsonDecoder, for: .json)
-    let jsonEncoder = JSONEncoder()
-    jsonEncoder.dateEncodingStrategy = .formatted(Date.iso8601MillisecFormatter)
-    contentConfig.use(encoder: jsonEncoder, for: .json)
-    services.register(contentConfig)
-
     let apnsCert = ProcessInfo.processInfo.environment["APNS_CERT"]!.data(using: .utf8)!
     let directory = DirectoryConfig.detect()
     let workingDirectory = directory.workDir
