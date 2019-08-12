@@ -22,6 +22,7 @@ struct UserResponse: Content {
     let startDate: Date
     let largeTransaction: Double
     var allowance: Double
+    var balance: Double
 
 }
 
@@ -72,7 +73,8 @@ final class User: PostgreSQLUUIDModel {
                             payday: payday,
                             startDate: startDate,
                             largeTransaction: largeTransaction,
-                            allowance: 0)
+                            allowance: 0,
+                            balance: 0)
     }
 
     init(id: UUID? = nil,

@@ -1,21 +1,26 @@
 import Vapor
 
 final class StarlingClientController {
+    func get(endpoint: StarlingAPI,
+             token: String,
+             on con: Container) throws -> Future<Response> {
+        let client = try con.client()
+        var headers = HTTPHeaders()
+        headers.bearerAuthorization = BearerAuthorization(token: token)
+
+        return client.send(.GET, headers: headers, to: endpoint.uri)
+    }
 
     func get<Parameters: Encodable>(endpoint: StarlingAPI,
                                     token: String,
-                                    parameters: Parameters? = nil,
+                                    parameters: Parameters,
                                     on con: Container) throws -> Future<Response> {
         let client = try con.client()
         var headers = HTTPHeaders()
         headers.bearerAuthorization = BearerAuthorization(token: token)
 
         return client.send(.GET, headers: headers, to: endpoint.uri) { request in
-            if let parameters = parameters {
-                try request.query.encode(parameters)
-            }
+            try request.query.encode(parameters)
         }
-
     }
-
 }

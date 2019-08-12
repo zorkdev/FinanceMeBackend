@@ -9,10 +9,17 @@ final class UserController {
     func showCurrentUser(_ req: Request) throws -> Future<UserResponse> {
         let user = try req.requireAuthenticated(User.self)
 
-        return try spendingBusinessLogic.calculateAllowance(for: user, on: req)
-            .map { allowance in
+        let allowance = try spendingBusinessLogic.calculateAllowance(for: user, on: req)
+        let balance = try StarlingBalanceController()
+            .getBalance(user: user, on: req)
+            .map { $0.effectiveBalance }
+
+        return [allowance, balance]
+            .flatten(on: req)
+            .map { results in
                 var userResponse = user.response
-                userResponse.allowance = allowance
+                userResponse.allowance = results[0]
+                userResponse.balance = results[1]
                 return userResponse
         }
     }
