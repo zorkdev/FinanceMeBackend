@@ -1,7 +1,6 @@
 import Vapor
 
 final class ReconciliationController {
-
     private let spendingBusinessLogic = SpendingBusinessLogic()
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
     private let pushNotificationController = PushNotificationController()
@@ -25,5 +24,4 @@ final class ReconciliationController {
     func addRoutes(to router: Router) {
         router.post(Routes.reconcile.rawValue, use: store)
     }
-
 }

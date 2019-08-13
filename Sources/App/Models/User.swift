@@ -3,7 +3,6 @@ import FluentPostgreSQL
 import Authentication
 
 struct UserRequest: Content {
-
     let name: String
     let email: String
     let password: String
@@ -11,11 +10,9 @@ struct UserRequest: Content {
     let startDate: Date
     let largeTransaction: Double
     var allowance: Double
-
 }
 
 struct UserResponse: Content {
-
     let id: UUID?
     let name: String
     let payday: Int
@@ -23,25 +20,19 @@ struct UserResponse: Content {
     let largeTransaction: Double
     var allowance: Double
     var balance: Double
-
 }
 
 struct LoginRequest: Content {
-
     let email: String
     let password: String
-
 }
 
 struct Session: Content {
-
     let token: String
     let sToken: String
-
 }
 
 final class User: PostgreSQLUUIDModel {
-
     static let entity = "users"
 
     var id: UUID?
@@ -98,17 +89,13 @@ final class User: PostgreSQLUUIDModel {
         self.customerUid = customerUid
         self.deviceTokens = deviceTokens
     }
-
 }
 
 extension User: TokenAuthenticatable {
-
     typealias TokenType = Token
-
 }
 
 extension User: PasswordAuthenticatable {
-
     static var usernameKey: WritableKeyPath<User, String> {
         return \.email
     }
@@ -116,7 +103,6 @@ extension User: PasswordAuthenticatable {
     static var passwordKey: WritableKeyPath<User, String> {
         return \.password
     }
-
 }
 
 extension User: Migration {}

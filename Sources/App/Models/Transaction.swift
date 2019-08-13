@@ -2,14 +2,12 @@ import Vapor
 import FluentPostgreSQL
 
 struct TransactionResponse: Content {
-
     let id: UUID?
     let amount: Double
     let direction: TransactionDirection
     let created: Date
     let narrative: String
     let source: TransactionSource
-
 }
 
 enum TransactionDirection: String, Content, ReflectionDecodable {
@@ -20,7 +18,6 @@ enum TransactionDirection: String, Content, ReflectionDecodable {
     case none = "NONE"
     case outbound = "OUTBOUND"
     case inbound = "INBOUND"
-
 }
 
 enum TransactionSource: String, Equatable, Content, ReflectionDecodable {
@@ -82,11 +79,9 @@ enum TransactionSource: String, Equatable, Content, ReflectionDecodable {
             return false
         }
     }
-
 }
 
 final class Transaction: PostgreSQLUUIDModel {
-
     private enum CodingKeys: String, CodingKey {
         case id
         case amount
@@ -162,7 +157,6 @@ final class Transaction: PostgreSQLUUIDModel {
         self.internalAmount = nil
         self.userID = UUID()
     }
-
 }
 
 extension Transaction: Migration {}

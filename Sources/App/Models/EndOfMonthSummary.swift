@@ -2,7 +2,6 @@ import Vapor
 import FluentPostgreSQL
 
 struct EndOfMonthSummariesResponse: Content {
-
     let currentMonthSummary: CurrentMonthSummary
     let endOfMonthSummaries: [EndOfMonthSummaryResponse]
 
@@ -11,19 +10,15 @@ struct EndOfMonthSummariesResponse: Content {
         self.currentMonthSummary = currentMonthSummary
         self.endOfMonthSummaries = endOfMonthSummaries
     }
-
 }
 
 struct EndOfMonthSummaryResponse: Content {
-
     var id: UUID?
     let created: Date
     let balance: Double
-
 }
 
 final class EndOfMonthSummary: PostgreSQLUUIDModel {
-
     private enum CodingKeys: String, CodingKey {
         case id
         case created
@@ -58,7 +53,6 @@ final class EndOfMonthSummary: PostgreSQLUUIDModel {
         self.balance = balance
         self.userID = userID
     }
-
 }
 
 extension EndOfMonthSummary: Migration {}

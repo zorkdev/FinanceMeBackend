@@ -2,7 +2,6 @@ import Vapor
 import Authentication
 
 final class UserController {
-
     private let spendingBusinessLogic = SpendingBusinessLogic()
     private let pushNotificationController = PushNotificationController()
 
@@ -101,5 +100,4 @@ final class UserController {
         router.get(Routes.usersMe.rawValue, use: showCurrentUser)
         router.patch(Routes.usersMe.rawValue, use: updateCurrentUser)
     }
-
 }

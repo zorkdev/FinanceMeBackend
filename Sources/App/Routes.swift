@@ -2,7 +2,6 @@ import Vapor
 import Authentication
 
 enum Routes: String {
-
     case root = "/"
     case index = "index.html"
     case api = "api"
@@ -14,7 +13,6 @@ enum Routes: String {
     case reconcile = "reconcile"
     case endOfMonthSummaries = "endOfMonthSummaries"
     case deviceToken = "deviceToken"
-
 }
 
 public func routes(_ router: Router) throws {

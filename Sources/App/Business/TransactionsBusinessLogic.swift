@@ -2,7 +2,6 @@ import Vapor
 import FluentPostgreSQL
 
 final class TransactionsBusinessLogic {
-
     @discardableResult
     func getTransactions(user: User,
                          from: Date? = nil,
@@ -97,9 +96,8 @@ final class TransactionsBusinessLogic {
 
 // MARK: - Private methods
 
-extension TransactionsBusinessLogic {
-
-    private func calculateLatestTransactionDate(for user: User, on conn: DatabaseConnectable) throws -> Future<Date> {
+private extension TransactionsBusinessLogic {
+    func calculateLatestTransactionDate(for user: User, on conn: DatabaseConnectable) throws -> Future<Date> {
         return try user.transactions
             .query(on: conn)
             .filter(\.source != .externalRegularOutbound)
@@ -111,10 +109,10 @@ extension TransactionsBusinessLogic {
             .map { $0?.created ?? user.startDate }
     }
 
-    private func fetchTransactions(for user: User,
-                                   from: Date,
-                                   to: Date,
-                                   on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
+    func fetchTransactions(for user: User,
+                           from: Date,
+                           to: Date,
+                           on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
         return try user.transactions
             .query(on: conn)
             .filter(\.created >= from)
@@ -123,5 +121,4 @@ extension TransactionsBusinessLogic {
             .filter(\.source != .externalRegularInbound)
             .all()
     }
-
 }

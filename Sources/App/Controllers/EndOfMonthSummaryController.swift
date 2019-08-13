@@ -1,7 +1,6 @@
 import Vapor
 
 final class EndOfMonthSummaryController {
-
     private let spendingBusinessLogic = SpendingBusinessLogic()
 
     func index(_ req: Request) throws -> Future<EndOfMonthSummariesResponse> {
@@ -16,5 +15,4 @@ final class EndOfMonthSummaryController {
     func addRoutes(to router: Router) {
         router.get(Routes.endOfMonthSummaries.rawValue, use: index)
     }
-
 }

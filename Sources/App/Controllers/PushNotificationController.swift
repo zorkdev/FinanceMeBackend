@@ -1,7 +1,6 @@
 import Vapor
 
 final class PushNotificationController {
-
     var certPath: String {
         let directory = DirectoryConfig.detect()
         let workingDirectory = directory.workDir
@@ -65,5 +64,4 @@ final class PushNotificationController {
     func addRoutes(to router: Router) {
         router.post(Routes.deviceToken.rawValue, use: store)
     }
-
 }

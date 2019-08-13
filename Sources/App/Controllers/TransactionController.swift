@@ -2,7 +2,6 @@ import Vapor
 import FluentPostgreSQL
 
 final class TransactionController {
-
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
     private let pushNotificationController = PushNotificationController()
 
@@ -110,5 +109,4 @@ final class TransactionController {
         router.put(Routes.transactions.rawValue, Transaction.parameter, use: replace)
         router.delete(Routes.transactions.rawValue, Transaction.parameter, use: destroy)
     }
-
 }

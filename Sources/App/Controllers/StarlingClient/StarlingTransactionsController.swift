@@ -1,12 +1,6 @@
 import Vapor
 
 final class StarlingTransactionsController {
-
-    private struct Constants {
-        static let embeddedKey = "_embedded"
-        static let transactionsKey = "transactions"
-    }
-
     func getTransactions(user: User,
                          from: Date? = nil,
                          to: Date? = nil,
@@ -34,5 +28,4 @@ final class StarlingTransactionsController {
                 throw error
         }
     }
-
 }

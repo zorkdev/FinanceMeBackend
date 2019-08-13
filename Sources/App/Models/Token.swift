@@ -3,7 +3,6 @@ import FluentPostgreSQL
 import Authentication
 
 final class Token: PostgreSQLUUIDModel {
-
     private enum CodingKeys: String, CodingKey {
         case id
         case token
@@ -12,7 +11,7 @@ final class Token: PostgreSQLUUIDModel {
 
     static let entity = "tokens"
 
-    private struct Constants {
+    private enum Constants {
         static let tokenBytes = 48
     }
 
@@ -32,11 +31,9 @@ final class Token: PostgreSQLUUIDModel {
         self.token = token
         self.userID = userID
     }
-
 }
 
 extension Token: Authentication.Token {
-
     typealias UserType = User
 
     static var userIDKey: WritableKeyPath<Token, User.ID> {
@@ -55,7 +52,6 @@ extension Token: Authentication.Token {
         }
         return Token(token: string, userID: userID)
     }
-
 }
 
 extension Token: Migration {}

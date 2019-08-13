@@ -1,7 +1,6 @@
 import Foundation
 
-struct Formatters {
-
+enum Formatters {
     static let apiDate: DateFormatter = {
         let formatter = DateFormatter()
         formatter.timeZone = Foundation.TimeZone(abbreviation: "UTC")
@@ -10,5 +9,4 @@ struct Formatters {
 
         return formatter
     }()
-
 }

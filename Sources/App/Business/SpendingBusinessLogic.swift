@@ -2,7 +2,6 @@ import Vapor
 import FluentPostgreSQL
 
 final class SpendingBusinessLogic {
-
     private struct Constants {
         static let travelNarrative = "TfL"
         static let internalTransferNarrative = "INTERNAL TRANSFER"
@@ -146,14 +145,12 @@ final class SpendingBusinessLogic {
                 return currentmonthSummary
         }
     }
-
 }
 
 // MARK: - Private methods
 
-extension SpendingBusinessLogic {
-
-    private func calculateWeeklyLimit(for user: User, limit: Double, carryOver: Double) -> Double {
+private extension SpendingBusinessLogic {
+    func calculateWeeklyLimit(for user: User, limit: Double, carryOver: Double) -> Double {
         let now = Date().startOfDay
 
         let previousPayday = now.next(day: user.payday, direction: .backward)
@@ -176,7 +173,7 @@ extension SpendingBusinessLogic {
         return newWeeklyLimit
     }
 
-    private func calculateSpendingThisWeek(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateSpendingThisWeek(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
         let now = Date().startOfDay
         let previousPayday = now.next(day: user.payday, direction: .backward)
         let startOfWeek = max(previousPayday, now.startOfWeek)
@@ -184,15 +181,15 @@ extension SpendingBusinessLogic {
         return try calculateSpending(for: user, from: startOfWeek, withTravel: false, on: conn)
     }
 
-    private func calculateSpendingThisMonth(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateSpendingThisMonth(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
         let from = Date().startOfDay.next(day: user.payday, direction: .backward)
         return try calculateSpending(for: user, from: from, withTravel: true, on: conn)
     }
 
-    private func calculateSpending(for user: User,
-                                   from: Date,
-                                   withTravel: Bool,
-                                   on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateSpending(for user: User,
+                           from: Date,
+                           withTravel: Bool,
+                           on conn: DatabaseConnectable) throws -> Future<Double> {
         let now = Date()
 
         return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
@@ -224,7 +221,7 @@ extension SpendingBusinessLogic {
         }
     }
 
-    private func calculateSpendingTotalThisMonth(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateSpendingTotalThisMonth(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
         let from = Date().startOfDay.next(day: user.payday, direction: .backward)
 
         return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
@@ -244,7 +241,7 @@ extension SpendingBusinessLogic {
         }
     }
 
-    private func calculateSpendingLimit(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateSpendingLimit(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
         let now = Date()
         let from = now.startOfDay.next(day: user.payday, direction: .backward)
         let to = now
@@ -282,9 +279,9 @@ extension SpendingBusinessLogic {
         }
     }
 
-    private func calculateCarryOverFromPreviousWeeks(for user: User,
-                                                     limit: Double,
-                                                     on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateCarryOverFromPreviousWeeks(for user: User,
+                                             limit: Double,
+                                             on conn: DatabaseConnectable) throws -> Future<Double> {
         let now = Date().startOfDay
         let startOfWeek = now.startOfWeek
         let nextPayday = now.next(day: user.payday, direction: .forward)
@@ -319,8 +316,8 @@ extension SpendingBusinessLogic {
         }
     }
 
-    private func calculateDailySpendingAverage(for user: User,
-                                               on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateDailySpendingAverage(for user: User,
+                                       on conn: DatabaseConnectable) throws -> Future<Double> {
         let today = Date().startOfDay
 
         return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
@@ -347,8 +344,8 @@ extension SpendingBusinessLogic {
         }
     }
 
-    private func calculateRemainingTravelSpendingThisWeek(for user: User,
-                                                          on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateRemainingTravelSpendingThisWeek(for user: User,
+                                                  on conn: DatabaseConnectable) throws -> Future<Double> {
         let today = Date().startOfDay
         let nextPayday = today.next(day: user.payday, direction: .forward)
         let daysUntilPayday = nextPayday.numberOfDays(from: today.startOfDay)
@@ -359,8 +356,8 @@ extension SpendingBusinessLogic {
             .map { $0 * remainingDays }
     }
 
-    private func calculateRemainingTravelSpendingThisMonth(for user: User,
-                                                           on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateRemainingTravelSpendingThisMonth(for user: User,
+                                                   on conn: DatabaseConnectable) throws -> Future<Double> {
         let today = Date().startOfDay
         let payday = today.next(day: user.payday, direction: .forward)
         let remainingDays = Double(payday.numberOfDays(from: today.add(day: 1)))
@@ -369,7 +366,7 @@ extension SpendingBusinessLogic {
             .map { $0 * remainingDays }
     }
 
-    private func calculateDailyTravelSpending(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateDailyTravelSpending(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
         let today = Date().startOfDay
 
         return try user.transactions
@@ -386,12 +383,11 @@ extension SpendingBusinessLogic {
         }
     }
 
-    private func calculateAmountSum(from transactions: [Transaction]) -> Double {
+    func calculateAmountSum(from transactions: [Transaction]) -> Double {
         return transactions
             .compactMap({ $0.amount })
             .reduce(0, +)
     }
-
 }
 
 extension Array where Element: Transaction {

@@ -12,8 +12,6 @@ enum StarlingAPI: String {
 }
 
 struct StarlingParameters: Content {
-
     var from: String?
     var to: String?
-
 }

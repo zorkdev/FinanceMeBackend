@@ -8,7 +8,6 @@ let calendar: Calendar = {
 }()
 
 extension Date {
-
     static let daysInWeek = 7
 
     static let iso8601MillisecFormatter: DateFormatter = {
@@ -72,5 +71,4 @@ extension Date {
     func numberOfDays(from: Date) -> Int {
         return calendar.dateComponents([.day], from: from.startOfDay, to: self.startOfDay).day ?? 0
     }
-
 }
