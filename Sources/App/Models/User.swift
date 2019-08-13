@@ -29,7 +29,6 @@ struct LoginRequest: Content {
 
 struct Session: Content {
     let token: String
-    let sToken: String
 }
 
 final class User: PostgreSQLUUIDModel {

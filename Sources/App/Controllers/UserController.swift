@@ -84,9 +84,8 @@ final class UserController {
                     .query(on: req)
                     .first()
                     .map { token in
-                        guard let token = token,
-                            let sToken = user.sToken else { throw Abort(.internalServerError) }
-                        return Session(token: token.token, sToken: sToken)
+                        guard let token = token else { throw Abort(.internalServerError) }
+                        return Session(token: token.token)
                 }
         }
     }
