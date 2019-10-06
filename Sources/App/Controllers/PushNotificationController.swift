@@ -47,7 +47,7 @@ final class PushNotificationController {
         let arguments = [
             "-d", "\(payload)",
             "-H", "Content-Type: application/json",
-            "-H", "apns-topic:com.zorkdev.MyFinance.iOS.complication",
+            "-H", "apns-topic:com.zorkdev.FinanceMe.complication",
             "-H", "apns-expiration: 1",
             "-H", "apns-priority: 10",
             "https://api.push.apple.com/3/device/\(deviceToken)",
