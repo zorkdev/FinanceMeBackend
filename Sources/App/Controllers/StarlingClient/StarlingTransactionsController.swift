@@ -27,7 +27,8 @@ final class StarlingTransactionsController {
                                                   token: token,
                                                   parameters: parameters,
                                                   on: con)
-            .flatMap { try $0.content.decode(HALResponse<TransactionList>.self, using: Self.decoder) }
+            .flatMap { try $0.content.decode(HALResponse<TransactionList>.self,
+                                             using: StarlingTransactionsController.decoder) }
             .map { $0.embedded.transactions.map { Transaction(from: $0) } }
             .catchMap { error in
                 try con.make(Logger.self).error("\(error)")
