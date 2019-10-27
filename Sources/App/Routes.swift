@@ -13,6 +13,7 @@ enum Routes: String {
     case reconcile = "reconcile"
     case endOfMonthSummaries = "endOfMonthSummaries"
     case deviceToken = "deviceToken"
+    case metrics = "metrics"
 }
 
 public func routes(_ router: Router) throws {
@@ -39,4 +40,7 @@ public func routes(_ router: Router) throws {
 
     let pushNotificationController = PushNotificationController()
     pushNotificationController.addRoutes(to: tokenGroup)
+
+    let metricController = MetricController()
+    metricController.addPublicRoutes(to: apiGroup)
 }
