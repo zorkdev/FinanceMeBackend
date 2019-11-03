@@ -4,12 +4,13 @@ import Authentication
 final class UserController {
     private let spendingBusinessLogic = SpendingBusinessLogic()
     private let pushNotificationController = PushNotificationController()
+    private let starlingBalanceController = StarlingBalanceController()
 
     func showCurrentUser(_ req: Request) throws -> Future<UserResponse> {
         let user = try req.requireAuthenticated(User.self)
 
         let allowance = try spendingBusinessLogic.calculateAllowance(for: user, on: req)
-        let balance = try StarlingBalanceController()
+        let balance = try starlingBalanceController
             .getBalance(user: user, on: req)
             .map { $0.effectiveBalance }
 
@@ -58,13 +59,18 @@ final class UserController {
                 user.startDate = updatedUser.startDate
                 return user.save(on: req)
             }.flatMap { try self.spendingBusinessLogic.calculateAllowance(for: $0, on: req) }
-            .flatMap { allowance in
+            .flatMap{ allowance in
+                try self.starlingBalanceController
+                    .getBalance(user: user, on: req)
+                    .map { (allowance, $0.effectiveBalance) }
+            }.flatMap { (allowance, balance) in
                 return try self.pushNotificationController.sendNotification(user: user,
                                                                             allowance: allowance,
                                                                             on: req)
                     .map { _ in
                         var userResponse = user.response
                         userResponse.allowance = allowance
+                        userResponse.balance = balance
                         return userResponse
                 }
         }
