@@ -47,9 +47,10 @@ final class PushNotificationController {
         let arguments = [
             "-d", "\(payload)",
             "-H", "Content-Type: application/json",
-            "-H", "apns-topic:com.zorkdev.FinanceMe.complication",
+            "-H", "apns-topic:com.zorkdev.FinanceMe.watchkitapp.watchkitextension.complication",
             "-H", "apns-expiration: 1",
             "-H", "apns-priority: 10",
+            "-H", "apns-push-type: complication",
             "https://api.push.apple.com/3/device/\(deviceToken)",
             "-E", "\(certPath):\(pw)",
             "--http2-prior-knowledge"
