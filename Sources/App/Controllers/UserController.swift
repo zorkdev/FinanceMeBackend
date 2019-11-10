@@ -38,7 +38,9 @@ final class UserController {
                                 largeTransaction: userRequest.largeTransaction,
                                 sToken: nil,
                                 customerUid: nil,
-                                deviceTokens: [])
+                                deviceTokens: [],
+                                dailySpendingAverage: 0,
+                                dailyTravelSpendingAverage: 0)
 
                 return user.save(on: req)
                     .flatMap { user in

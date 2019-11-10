@@ -44,6 +44,8 @@ final class User: PostgreSQLUUIDModel {
     var sToken: String?
     var customerUid: String?
     var deviceTokens: [String]
+    var dailySpendingAverage: Double
+    var dailyTravelSpendingAverage: Double
 
     var token: Children<User, Token> {
         return children(\.userID)
@@ -76,7 +78,9 @@ final class User: PostgreSQLUUIDModel {
          largeTransaction: Double,
          sToken: String?,
          customerUid: String?,
-         deviceTokens: [String]) {
+         deviceTokens: [String],
+         dailySpendingAverage: Double,
+         dailyTravelSpendingAverage: Double) {
         self.id = id
         self.name = name
         self.email = email
@@ -87,6 +91,8 @@ final class User: PostgreSQLUUIDModel {
         self.sToken = sToken
         self.customerUid = customerUid
         self.deviceTokens = deviceTokens
+        self.dailySpendingAverage = dailySpendingAverage
+        self.dailyTravelSpendingAverage = dailyTravelSpendingAverage
     }
 }
 

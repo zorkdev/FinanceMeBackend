@@ -66,16 +66,14 @@ final class SpendingBusinessLogic {
     func calculateAllowance(for user: User, on req: Request) throws -> Future<Double> {
         let spendingLimitFuture = try calculateSpendingLimit(for: user, on: req)
         let spendingThisWeekFuture = try self.calculateSpendingThisWeek(for: user, on: req)
-        let remainingTravelFuture = try self.calculateRemainingTravelSpendingThisWeek(for: user, on: req)
 
         return [spendingLimitFuture,
-                spendingThisWeekFuture,
-                remainingTravelFuture]
+                spendingThisWeekFuture]
             .flatten(on: req)
             .flatMap { results in
                 let spendingLimit = results[0]
                 let spendingThisWeek = results[1]
-                let remainingTravel = results[2]
+                let remainingTravel = self.calculateRemainingTravelSpendingThisWeek(for: user)
 
                 return try self.calculateCarryOverFromPreviousWeeks(for: user,
                                                                     limit: spendingLimit,
@@ -106,22 +104,18 @@ final class SpendingBusinessLogic {
 
         let spendingLimitFuture = try calculateSpendingLimit(for: user, on: req)
         let spendingThisMonthFuture = try calculateSpendingThisMonth(for: user, on: req)
-        let dailySpendingAverageFuture = try calculateDailySpendingAverage(for: user, on: req)
-        let remainingTravelFuture = try calculateRemainingTravelSpendingThisMonth(for: user, on: req)
         let spendingTotalFuture = try calculateSpendingTotalThisMonth(for: user, on: req)
 
         return [spendingLimitFuture,
                 spendingThisMonthFuture,
-                dailySpendingAverageFuture,
-                remainingTravelFuture,
                 spendingTotalFuture]
             .flatten(on: req)
             .map { results in
                 let spendingLimit = results[0]
                 let spendingThisMonth = results[1]
-                let dailySpendingAverage = results[2]
-                let remainingTravel = results[3]
-                let spendingTotal = results[4]
+                let spendingTotal = results[2]
+                let dailySpendingAverage = user.dailySpendingAverage
+                let remainingTravel = self.calculateRemainingTravelSpendingThisMonth(for: user)
 
                 let allowance = spendingLimit + spendingThisMonth + remainingTravel
 
@@ -144,6 +138,17 @@ final class SpendingBusinessLogic {
                                                               spending: spendingTotal)
                 return currentmonthSummary
         }
+    }
+
+    func updateDailySpendingAverage(user: User, on req: Request) throws -> Future<Void> {
+        return try calculateDailySpendingAverage(for: user, on: req)
+            .flatMap { dailySpending in
+                try self.calculateDailyTravelSpending(for: user, on: req).map { (dailySpending, $0) }
+            }.flatMap { dailySpending, travelSpending in
+                user.dailySpendingAverage = dailySpending
+                user.dailyTravelSpendingAverage = travelSpending
+                return user.save(on: req).map { _ in }
+            }
     }
 }
 
@@ -344,26 +349,22 @@ private extension SpendingBusinessLogic {
         }
     }
 
-    func calculateRemainingTravelSpendingThisWeek(for user: User,
-                                                  on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateRemainingTravelSpendingThisWeek(for user: User) -> Double {
         let today = Date().startOfDay
         let nextPayday = today.next(day: user.payday, direction: .forward)
         let daysUntilPayday = nextPayday.numberOfDays(from: today.startOfDay)
         let daysUntilEndOfWeek = today.endOfWeek.numberOfDays(from: today)
         let remainingDays = Double(min(daysUntilEndOfWeek, daysUntilPayday))
 
-        return try calculateDailyTravelSpending(for: user, on: conn)
-            .map { $0 * remainingDays }
+        return user.dailyTravelSpendingAverage * remainingDays
     }
 
-    func calculateRemainingTravelSpendingThisMonth(for user: User,
-                                                   on conn: DatabaseConnectable) throws -> Future<Double> {
+    func calculateRemainingTravelSpendingThisMonth(for user: User) -> Double {
         let today = Date().startOfDay
         let payday = today.next(day: user.payday, direction: .forward)
         let remainingDays = Double(payday.numberOfDays(from: today.add(day: 1)))
 
-        return try calculateDailyTravelSpending(for: user, on: conn)
-            .map { $0 * remainingDays }
+        return user.dailyTravelSpendingAverage * remainingDays
     }
 
     func calculateDailyTravelSpending(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {

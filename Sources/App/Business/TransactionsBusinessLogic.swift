@@ -45,17 +45,11 @@ final class TransactionsBusinessLogic {
     func updateTransactions(user: User, on req: Request) throws -> Future<[Transaction]> {
         guard let id = user.id else { throw Abort(.internalServerError) }
 
-        let from = user.startDate
-        let to = Date()
-
         return try deleteStarlingTransactions(for: user, on: req)
-            .flatMap { _ in
-                return try StarlingTransactionsController().getTransactions(user: user,
-                                                                            from: from,
-                                                                            to: to,
-                                                                            on: req)
-            }.flatMap { transactions in
-                transactions.forEach({ $0.userID = id })
+            .flatMap { try self.calculateLatestTransactionDate(for: user, on: req) }
+            .flatMap { try StarlingTransactionsController().getTransactions(user: user, from: $0, to: Date(), on: req) }
+            .flatMap { transactions in
+                transactions.forEach { $0.userID = id }
                 return transactions.map { $0.create(on: req) }.flatten(on: req)
         }
     }
