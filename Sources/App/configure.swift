@@ -3,7 +3,9 @@ import Vapor
 import Authentication
 
 public func configure(_ config: inout Config, _ env: inout Environment, _ services: inout Services) throws {
-    services.register(NIOServerConfig.default(supportCompression: true))
+    services.register(NIOServerConfig.default(workerCount: 4, supportCompression: true))
+    services.register(DatabaseConnectionPoolConfig(maxConnections: 4))
+
     try services.register(FluentPostgreSQLProvider())
     try services.register(AuthenticationProvider())
 
@@ -15,10 +17,6 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     middlewares.use(FileMiddleware.self)
     middlewares.use(ErrorMiddleware.self)
     services.register(middlewares)
-
-    let maxConnections = 18 / ProcessInfo.processInfo.activeProcessorCount
-    let poolConfig = DatabaseConnectionPoolConfig(maxConnections: maxConnections)
-    services.register(poolConfig)
 
     let databaseURL = ProcessInfo.processInfo.environment["DATABASE_URL"]!
     let psqlConfig = PostgreSQLDatabaseConfig(url: databaseURL, transport: .unverifiedTLS)!
