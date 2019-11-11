@@ -5,14 +5,13 @@ final class TransactionsBusinessLogic {
     @discardableResult
     func getTransactions(user: User,
                          from: Date? = nil,
-                         to: Date? = nil,
                          on req: Request) throws -> Future<[Transaction]> {
         guard let id = user.id else { throw Abort(.internalServerError) }
 
         return try calculateLatestTransactionDate(for: user, on: req)
             .flatMap { lastTransactionDate in
                 let from = from ?? user.startDate
-                let to = to ?? Date()
+                let now = Date()
 
                 var neededFrom = lastTransactionDate
 
@@ -20,12 +19,11 @@ final class TransactionsBusinessLogic {
                     neededFrom = from
                 }
 
-                if to < lastTransactionDate {
-                    return try self.fetchTransactions(for: user, from: from, to: to, on: req)
+                if now < lastTransactionDate {
+                    return try self.fetchTransactions(for: user, from: from, to: now, on: req)
                 } else {
                     return try StarlingTransactionsController().getTransactions(user: user,
                                                                                 from: neededFrom,
-                                                                                to: to,
                                                                                 on: req)
                         .flatMap { transactions in
                             transactions.forEach({ $0.userID = id })
@@ -36,7 +34,7 @@ final class TransactionsBusinessLogic {
                                 .map { $0.create(on: req) }
                                 .flatten(on: req)
                         }.flatMap { (transactions: [Transaction]) -> Future<[Transaction]> in
-                            return try self.fetchTransactions(for: user, from: from, to: to, on: req)
+                            return try self.fetchTransactions(for: user, from: from, to: now, on: req)
                     }
                 }
         }
@@ -47,7 +45,7 @@ final class TransactionsBusinessLogic {
 
         return try deleteStarlingTransactions(for: user, on: req)
             .flatMap { try self.calculateLatestTransactionDate(for: user, on: req) }
-            .flatMap { try StarlingTransactionsController().getTransactions(user: user, from: $0, to: Date(), on: req) }
+            .flatMap { try StarlingTransactionsController().getTransactions(user: user, from: $0, on: req) }
             .flatMap { transactions in
                 transactions.forEach { $0.userID = id }
                 return transactions.map { $0.create(on: req) }.flatten(on: req)

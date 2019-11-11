@@ -46,6 +46,8 @@ final class User: PostgreSQLUUIDModel {
     var deviceTokens: [String]
     var dailySpendingAverage: Double
     var dailyTravelSpendingAverage: Double
+    var accountUid: UUID?
+    var categoryUid: UUID?
 
     var token: Children<User, Token> {
         return children(\.userID)

@@ -1,17 +1,25 @@
 import Vapor
 
-enum StarlingAPI: String {
-    static let baseURL = "https://api.starlingbank.com/api/v1/"
+enum StarlingAPI {
+    static let baseURL = "https://api.starlingbank.com/api/v2/"
 
-    case getBalance = "accounts/balance"
-    case getTransactions = "transactions"
+    case getBalance(accountUid: UUID)
+    case getTransactions(accountUid: UUID, categoryUid: UUID)
+
+    private var path: String {
+        switch self {
+        case .getBalance(let accountUid):
+            return "accounts/\(accountUid)/balance"
+        case .getTransactions(let accountUid, let categoryUid):
+            return "feed/account/\(accountUid)/category/\(categoryUid)"
+        }
+    }
 
     var uri: String {
-        return StarlingAPI.baseURL + rawValue
+        return StarlingAPI.baseURL + path
     }
 }
 
 struct StarlingParameters: Content {
-    var from: String?
-    var to: String?
+    var changesSince: String?
 }

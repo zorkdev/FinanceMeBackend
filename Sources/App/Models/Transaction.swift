@@ -31,6 +31,7 @@ enum TransactionSource: String, Equatable, Content, ReflectionDecodable {
     case cashWithdrawalCharge = "CASH_WITHDRAWAL_CHARGE"
     case chaps = "CHAPS"
     case cheque = "CHEQUE"
+    case cicsCheque = "CICS_CHEQUE"
     case currencyCloud = "CURRENCY_CLOUD"
     case directCredit = "DIRECT_CREDIT"
     case directDebit = "DIRECT_DEBIT"
@@ -61,6 +62,7 @@ enum TransactionSource: String, Equatable, Content, ReflectionDecodable {
     case starlingPayment = "STARLING_PAYMENT"
     case starlingPayStripe = "STARLING_PAY_STRIPE"
     case stripeFunding = "STRIPE_FUNDING"
+    case subscriptionCharge = "SUBSCRIPTION_CHARGE"
     case target2CustomerPayment = "TARGET2_CUSTOMER_PAYMENT"
 
     case externalRegularInbound = "EXTERNAL_REGULAR_INBOUND"
@@ -146,10 +148,10 @@ final class Transaction: PostgreSQLUUIDModel {
     }
 
     init(from: StarlingTransaction) {
-        self.id = from.id
-        self.amount = from.amount
-        self.direction = from.direction
-        self.created = from.created
+        self.id = from.feedItemUid
+        self.amount = from.signedAmount
+        self.direction = from.direction.direction
+        self.created = from.transactionTime
         self.narrative = from.narrative
         self.source = from.source ?? .fasterPaymentsOut
         self.isArchived = false

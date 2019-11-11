@@ -12,7 +12,7 @@ final class UserController {
         let allowance = try spendingBusinessLogic.calculateAllowance(for: user, on: req)
         let balance = try starlingBalanceController
             .getBalance(user: user, on: req)
-            .map { $0.effectiveBalance }
+            .map { $0.effectiveBalance.doubleValue }
 
         return [allowance, balance]
             .flatten(on: req)
@@ -64,7 +64,7 @@ final class UserController {
             .flatMap{ allowance in
                 try self.starlingBalanceController
                     .getBalance(user: user, on: req)
-                    .map { (allowance, $0.effectiveBalance) }
+                    .map { (allowance, $0.effectiveBalance.doubleValue) }
             }.flatMap { (allowance, balance) in
                 return try self.pushNotificationController.sendNotification(user: user,
                                                                             allowance: allowance,
