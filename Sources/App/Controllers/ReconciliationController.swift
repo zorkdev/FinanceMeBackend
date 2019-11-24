@@ -17,7 +17,7 @@ final class ReconciliationController {
                         .flatMap { _ in return try self.pushNotificationController.sendNotification(user: user,
                                                                                                     on: req)}
                 }.flatten(on: req)
-            }
+            }.catch { try? req.make(Logger.self).error("\($0)") }
 
         return req.eventLoop.newSucceededFuture(result: .ok)
     }
