@@ -2,10 +2,11 @@ import Vapor
 import FluentPostgreSQL
 
 final class SpendingBusinessLogic {
-    private struct Constants {
+    enum Constants {
         static let travelNarrative = "TfL"
         static let internalTransferNarrative = "INTERNAL TRANSFER"
         static let internalTransferGoalNarrative = "💸 Monthly Cash"
+        static let internalAmexGoalNarrative = "💳 Amex"
     }
 
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
@@ -46,6 +47,7 @@ final class SpendingBusinessLogic {
                             .filter(\.created < to)
                             .all()
                             .map { $0.filter(regularTransactions: regularTransactions) }
+                            .map { $0.filterAmexTransactions() }
                             .flatMap { transactions in
                                 var balance = self.calculateAmountSum(from: transactions + regularTransactions)
 
@@ -213,6 +215,7 @@ private extension SpendingBusinessLogic {
                     .filter(\.amount < user.largeTransaction)
                     .all()
                     .map { $0.filter(regularTransactions: regularTransactions) }
+                    .map { $0.filterAmexTransactions() }
                     .map { transactions in
                         var filteredTransactions = transactions
                         if withTravel == false {
@@ -242,6 +245,7 @@ private extension SpendingBusinessLogic {
                     .filter(\.created >= from)
                     .all()
                     .map { $0.filter(regularTransactions: regularTransactions) }
+                    .map { $0.filterAmexTransactions() }
                     .map { self.calculateAmountSum(from: $0) }
         }
     }
@@ -269,6 +273,7 @@ private extension SpendingBusinessLogic {
                     }
                     .all()
                     .map { $0.filter(regularTransactions: regularTransactions) }
+                    .map { $0.filterAmexTransactions() }
                     .flatMap { largeTransactions in
                         return try user.endOfMonthSummaries
                             .query(on: conn)
@@ -311,6 +316,7 @@ private extension SpendingBusinessLogic {
                     .filter(\.created < startOfWeek)
                     .all()
                     .map { $0.filter(regularTransactions: regularTransactions) }
+                    .map { $0.filterAmexTransactions() }
                     .map { transactions in
                         let spending = self.calculateAmountSum(from: transactions)
                         let dailyLimit = limit / Double(daysInMonth)
@@ -339,6 +345,7 @@ private extension SpendingBusinessLogic {
                     .filter(\.created < today)
                     .all()
                     .map { $0.filter(regularTransactions: regularTransactions) }
+                    .map { $0.filterAmexTransactions() }
                     .map { transactions in
                         var numberOfDays = today.add(day: -1).numberOfDays(from: user.startDate)
                         numberOfDays = numberOfDays == 0 ? 0 : numberOfDays
@@ -409,6 +416,15 @@ extension Array where Element: Transaction {
                         return mappedTransaction.0 == regularTransaction.0
                     }
             }
+        }
+    }
+
+    func filterAmexTransactions() -> [Transaction] {
+        return filter {
+            if $0.narrative == SpendingBusinessLogic.Constants.internalAmexGoalNarrative {
+                return $0.direction == .outbound
+            }
+            return true
         }
     }
 }
