@@ -48,8 +48,11 @@ final class TransactionsBusinessLogic {
             .flatMap { try StarlingTransactionsController().getTransactions(user: user, from: $0, on: req) }
             .flatMap { transactions in
                 transactions.forEach { $0.userID = id }
-                return transactions.map { $0.create(on: req) }.flatten(on: req)
-        }
+                return transactions
+                    .map { transaction in
+                        transaction.create(on: req).catchFlatMap { _ in transaction.update(on: req) }
+                    }.flatten(on: req)
+            }
     }
 
     func deleteStarlingTransactions(for user: User, on conn: DatabaseConnectable) throws -> Future<Void> {
