@@ -31,8 +31,9 @@ final class TransactionsBusinessLogic {
                                 .filter { calendar.compare($0.created,
                                                            to: neededFrom,
                                                            toGranularity: .second) == .orderedDescending }
-                                .map { $0.create(on: req) }
-                                .flatten(on: req)
+                                .map { transaction in
+                                    transaction.create(on: req).catchFlatMap { _ in transaction.update(on: req) }
+                                }.flatten(on: req)
                         }.flatMap { (transactions: [Transaction]) -> Future<[Transaction]> in
                             return try self.fetchTransactions(for: user, from: from, to: now, on: req)
                     }

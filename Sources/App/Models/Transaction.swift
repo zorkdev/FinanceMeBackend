@@ -147,7 +147,8 @@ final class Transaction: PostgreSQLUUIDModel {
         self.userID = userID
     }
 
-    init(from: StarlingTransaction) {
+    init?(from: StarlingTransaction) {
+        guard from.isStatusValid else { return nil }
         self.id = from.feedItemUid
         self.amount = from.signedAmount
         self.direction = from.direction.direction

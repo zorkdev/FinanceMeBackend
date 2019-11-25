@@ -27,7 +27,7 @@ final class StarlingTransactionsController {
                  on: con)
             .flatMap { try $0.content.decode(StarlingTransactionList.self,
                                              using: StarlingTransactionsController.decoder) }
-            .map { $0.feedItems.map { Transaction(from: $0) } }
+            .map { $0.feedItems.compactMap { Transaction(from: $0) } }
             .catchMap { error in
                 try con.make(Logger.self).error("\(error)")
                 throw error

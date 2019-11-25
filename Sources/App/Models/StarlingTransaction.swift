@@ -28,6 +28,17 @@ struct StarlingTransaction: Content {
         case loan = "LOAN"
     }
 
+    enum Status: String, Codable {
+        case accountCheck = "ACCOUNT_CHECK"
+        case declined = "DECLINED"
+        case pending = "PENDING"
+        case refunded = "REFUNDED"
+        case retrying = "RETRYING"
+        case reversed = "REVERSED"
+        case settled = "SETTLED"
+        case upcoming = "UPCOMING"
+    }
+
     let feedItemUid: UUID
     let amount: StarlingAmount
     let direction: Direction
@@ -36,6 +47,7 @@ struct StarlingTransaction: Content {
     let counterPartyType: CounterPartyType?
     let counterPartyName: String
     let reference: String?
+    let status: Status
 
     var narrative: String {
         switch counterPartyType {
@@ -46,5 +58,12 @@ struct StarlingTransaction: Content {
 
     var signedAmount: Double {
         return direction == .out ? -amount.doubleValue : amount.doubleValue
+    }
+
+    var isStatusValid: Bool {
+        switch status {
+        case .pending, .refunded, .settled: return true
+        case .accountCheck, .declined, .retrying, .reversed, .upcoming: return false
+        }
     }
 }
