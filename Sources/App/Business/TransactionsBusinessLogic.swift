@@ -63,6 +63,7 @@ final class TransactionsBusinessLogic {
             .filter(\.source != .externalRegularInbound)
             .filter(\.source != .externalOutbound)
             .filter(\.source != .externalInbound)
+            .filter(\.source != .externalSavings)
             .filter(\.isArchived == false)
             .delete()
     }
@@ -73,7 +74,15 @@ final class TransactionsBusinessLogic {
             .group(.or) { group in
                 group.filter(\.source == .externalRegularOutbound)
                 .filter(\.source == .externalRegularInbound)
+                .filter(\.source == .externalSavings)
             }
+            .all()
+    }
+
+    func getSavingsTransactions(for user: User, on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
+        return try user.transactions
+            .query(on: conn)
+            .filter(\.source == .externalSavings)
             .all()
     }
 
@@ -85,6 +94,7 @@ final class TransactionsBusinessLogic {
                 .filter(\.source == .externalRegularInbound)
                 .filter(\.source == .externalOutbound)
                 .filter(\.source == .externalInbound)
+                .filter(\.source == .externalSavings)
             }
             .all()
     }
@@ -100,6 +110,7 @@ private extension TransactionsBusinessLogic {
             .filter(\.source != .externalRegularInbound)
             .filter(\.source != .externalOutbound)
             .filter(\.source != .externalInbound)
+            .filter(\.source != .externalSavings)
             .sort(\.created, .descending)
             .first()
             .map { $0?.created ?? user.startDate }
@@ -115,6 +126,7 @@ private extension TransactionsBusinessLogic {
             .filter(\.created <= to)
             .filter(\.source != .externalRegularOutbound)
             .filter(\.source != .externalRegularInbound)
+            .filter(\.source != .externalSavings)
             .all()
     }
 }

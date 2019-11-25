@@ -34,11 +34,15 @@ final class SpendingBusinessLogic {
                 }
 
                 return try self.transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
-                    .flatMap { regularTransactions in
+                    .flatMap { regulars in
+                        try self.transactionsBusinessLogic.getSavingsTransactions(for: user, on: conn)
+                            .map { (regulars, $0) }
+                    }.flatMap { (regularTransactions, savingsTransactions) in
                         return try user.transactions
                             .query(on: conn)
                             .filter(\.source != .externalRegularOutbound)
                             .filter(\.source != .externalRegularInbound)
+                            .filter(\.source != .externalSavings)
                             .filter(\.source != .stripeFunding)
                             .filter(\.source != .directDebit)
                             .filter(\.narrative != Constants.internalTransferGoalNarrative)
@@ -49,6 +53,7 @@ final class SpendingBusinessLogic {
                             .map { $0.filter(regularTransactions: regularTransactions) }
                             .map { $0.filterAmexTransactions() }
                             .flatMap { transactions in
+                                let savings = abs(self.calculateAmountSum(from: savingsTransactions))
                                 var balance = self.calculateAmountSum(from: transactions + regularTransactions)
 
                                 if let lastBalance = lastBalance,
@@ -58,11 +63,12 @@ final class SpendingBusinessLogic {
 
                                 let endOfMonthSummary = EndOfMonthSummary(created: to,
                                                                           balance: balance,
+                                                                          savings: savings,
                                                                           userID: id)
                                 return endOfMonthSummary.save(on: conn).transform(to: ())
-                        }
-                }
-        }
+                            }
+                    }
+            }
     }
 
     func calculateAllowance(for user: User, on req: Request) throws -> Future<Double> {
@@ -205,6 +211,7 @@ private extension SpendingBusinessLogic {
                     .query(on: conn)
                     .filter(\.source != .externalRegularOutbound)
                     .filter(\.source != .externalRegularInbound)
+                    .filter(\.source != .externalSavings)
                     .filter(\.source != .stripeFunding)
                     .filter(\.source != .directDebit)
                     .filter(\.narrative != Constants.internalTransferGoalNarrative)
@@ -238,6 +245,7 @@ private extension SpendingBusinessLogic {
                     .query(on: conn)
                     .filter(\.source != .externalRegularOutbound)
                     .filter(\.source != .externalRegularInbound)
+                    .filter(\.source != .externalSavings)
                     .filter(\.source != .stripeFunding)
                     .filter(\.source != .directDebit)
                     .filter(\.narrative != Constants.internalTransferGoalNarrative)
@@ -261,6 +269,7 @@ private extension SpendingBusinessLogic {
                     .query(on: conn)
                     .filter(\.source != .externalRegularOutbound)
                     .filter(\.source != .externalRegularInbound)
+                    .filter(\.source != .externalSavings)
                     .filter(\.source != .stripeFunding)
                     .filter(\.source != .directDebit)
                     .filter(\.narrative != Constants.internalTransferGoalNarrative)
@@ -306,6 +315,7 @@ private extension SpendingBusinessLogic {
                     .query(on: conn)
                     .filter(\.source != .externalRegularOutbound)
                     .filter(\.source != .externalRegularInbound)
+                    .filter(\.source != .externalSavings)
                     .filter(\.source != .stripeFunding)
                     .filter(\.source != .directDebit)
                     .filter(\.narrative != Constants.internalTransferGoalNarrative)
@@ -337,6 +347,7 @@ private extension SpendingBusinessLogic {
                     .query(on: conn)
                     .filter(\.source != .externalRegularOutbound)
                     .filter(\.source != .externalRegularInbound)
+                    .filter(\.source != .externalSavings)
                     .filter(\.source != .stripeFunding)
                     .filter(\.source != .directDebit)
                     .filter(\.narrative != Constants.internalTransferGoalNarrative)
@@ -393,7 +404,7 @@ private extension SpendingBusinessLogic {
 
     func calculateAmountSum(from transactions: [Transaction]) -> Double {
         return transactions
-            .compactMap({ $0.amount })
+            .compactMap { $0.amount }
             .reduce(0, +)
     }
 }

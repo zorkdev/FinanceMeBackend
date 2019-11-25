@@ -69,13 +69,15 @@ enum TransactionSource: String, Equatable, Content, ReflectionDecodable {
     case externalRegularOutbound = "EXTERNAL_REGULAR_OUTBOUND"
     case externalInbound = "EXTERNAL_INBOUND"
     case externalOutbound = "EXTERNAL_OUTBOUND"
+    case externalSavings = "EXTERNAL_SAVINGS"
 
     var isExternal: Bool {
         switch self {
         case .externalInbound,
              .externalOutbound,
              .externalRegularInbound,
-             .externalRegularOutbound:
+             .externalRegularOutbound,
+             .externalSavings:
             return true
         default:
             return false

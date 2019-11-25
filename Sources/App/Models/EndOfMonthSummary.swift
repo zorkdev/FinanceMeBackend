@@ -16,6 +16,7 @@ struct EndOfMonthSummaryResponse: Content {
     var id: UUID?
     let created: Date
     let balance: Double
+    let savings: Double
 }
 
 final class EndOfMonthSummary: PostgreSQLUUIDModel {
@@ -23,6 +24,7 @@ final class EndOfMonthSummary: PostgreSQLUUIDModel {
         case id
         case created
         case balance
+        case savings
         case userID = "user_id"
     }
 
@@ -31,6 +33,7 @@ final class EndOfMonthSummary: PostgreSQLUUIDModel {
     var id: UUID?
     let created: Date
     let balance: Double
+    let savings: Double
 
     var userID: User.ID
 
@@ -41,16 +44,19 @@ final class EndOfMonthSummary: PostgreSQLUUIDModel {
     var response: EndOfMonthSummaryResponse {
         return EndOfMonthSummaryResponse(id: id,
                                          created: created,
-                                         balance: balance)
+                                         balance: balance,
+                                         savings: savings)
     }
 
     init(id: UUID? = nil,
          created: Date,
          balance: Double,
+         savings: Double,
          userID: User.ID) {
         self.id = id
         self.created = created
         self.balance = balance
+        self.savings = savings
         self.userID = userID
     }
 }
