@@ -7,9 +7,6 @@ excluded:
 identifier_name:
   min_length: 2
 line_length: 125
-implicit_return:
-  included:
-    - closure
 
 opt_in_rules:
   - anyobject_protocol

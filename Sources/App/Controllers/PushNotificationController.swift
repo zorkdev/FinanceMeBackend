@@ -26,12 +26,12 @@ final class PushNotificationController {
     }
 
     func sendNotification(user: User, on req: Request) throws -> Future<[Data]> {
-        return try spendingBusinessLogic.calculateAllowance(for: user, on: req)
+        try spendingBusinessLogic.calculateAllowance(for: user, on: req)
             .flatMap { try self.sendNotification(user: user, allowance: $0, on: req) }
     }
 
     func sendNotification(user: User, allowance: Double, on req: Request) throws -> Future<[Data]> {
-        return try user.deviceTokens
+        try user.deviceTokens
             .map {
                 try self.sendNotification(deviceToken: $0,
                                           allowance: allowance,

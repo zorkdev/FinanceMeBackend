@@ -8,11 +8,11 @@ final class Shell: Service {
     }
 
     func execute(commandName: String, arguments: [String] = []) throws -> Future<Data> {
-        return try bash(commandName: commandName, arguments: arguments)
+        try bash(commandName: commandName, arguments: arguments)
     }
 
     private func bash(commandName: String, arguments: [String]) throws -> Future<Data> {
-        return executeShell(command: "/bin/bash", arguments: [ "-l", "-c", "which \(commandName)" ])
+        executeShell(command: "/bin/bash", arguments: [ "-l", "-c", "which \(commandName)" ])
             .map(to: String.self) { data in
                 guard let commandPath = String(data: data, encoding: .utf8) else {
                     throw Abort(.internalServerError)
@@ -24,7 +24,7 @@ final class Shell: Service {
     }
 
     private func executeShell(command: String, arguments: [String] = []) -> Future<Data> {
-        return Future.map(on: worker) {
+        Future.map(on: worker) {
             let process = Process()
             process.launchPath = command
             process.arguments = arguments
@@ -40,6 +40,6 @@ final class Shell: Service {
 
 extension Shell: ServiceType {
     public static func makeService(for worker: Container) throws -> Shell {
-        return try Shell(worker: worker)
+        try Shell(worker: worker)
     }
 }

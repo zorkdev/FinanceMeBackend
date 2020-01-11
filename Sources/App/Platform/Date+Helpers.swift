@@ -11,11 +11,11 @@ extension Date {
     static let daysInWeek = 7
 
     var day: Int {
-        return calendar.component(.day, from: self)
+        calendar.component(.day, from: self)
     }
 
     var startOfDay: Date {
-        return calendar.startOfDay(for: self)
+        calendar.startOfDay(for: self)
     }
 
     var startOfWeek: Date {
@@ -25,9 +25,9 @@ extension Date {
     }
 
     var endOfWeek: Date {
-        return calendar.date(byAdding: .weekOfYear,
-                             value: 1,
-                             to: startOfWeek) ?? self
+        calendar.date(byAdding: .weekOfYear,
+                      value: 1,
+                      to: startOfWeek) ?? self
     }
 
     func set(day: Int) -> Date {
@@ -63,6 +63,6 @@ extension Date {
     }
 
     func numberOfDays(from: Date) -> Int {
-        return calendar.dateComponents([.day], from: from.startOfDay, to: self.startOfDay).day ?? 0
+        calendar.dateComponents([.day], from: from.startOfDay, to: self.startOfDay).day ?? 0
     }
 }

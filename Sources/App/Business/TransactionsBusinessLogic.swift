@@ -58,7 +58,7 @@ final class TransactionsBusinessLogic {
     }
 
     func deleteStarlingTransactions(for user: User, on conn: DatabaseConnectable) throws -> Future<Void> {
-        return try user.transactions
+        try user.transactions
             .query(on: conn)
             .filter(\.source != .externalRegularOutbound)
             .filter(\.source != .externalRegularInbound)
@@ -70,7 +70,7 @@ final class TransactionsBusinessLogic {
     }
 
     func getRegularTransactions(for user: User, on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
-        return try user.transactions
+        try user.transactions
             .query(on: conn)
             .group(.or) { group in
                 group.filter(\.source == .externalRegularOutbound)
@@ -81,14 +81,14 @@ final class TransactionsBusinessLogic {
     }
 
     func getSavingsTransactions(for user: User, on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
-        return try user.transactions
+        try user.transactions
             .query(on: conn)
             .filter(\.source == .externalSavings)
             .all()
     }
 
     func getExternalTransactions(for user: User, on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
-        return try user.transactions
+        try user.transactions
             .query(on: conn)
             .group(.or) { group in
                 group.filter(\.source == .externalRegularOutbound)
@@ -105,7 +105,7 @@ final class TransactionsBusinessLogic {
 
 private extension TransactionsBusinessLogic {
     func calculateLatestTransactionDate(for user: User, on conn: DatabaseConnectable) throws -> Future<Date> {
-        return try user.transactions
+        try user.transactions
             .query(on: conn)
             .filter(\.source != .externalRegularOutbound)
             .filter(\.source != .externalRegularInbound)
@@ -121,7 +121,7 @@ private extension TransactionsBusinessLogic {
                            from: Date,
                            to: Date,
                            on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
-        return try user.transactions
+        try user.transactions
             .query(on: conn)
             .filter(\.created >= from)
             .filter(\.created <= to)

@@ -16,7 +16,7 @@ enum StarlingAPI {
     }
 
     var uri: String {
-        return StarlingAPI.baseURL + path
+        StarlingAPI.baseURL + path
     }
 }
 

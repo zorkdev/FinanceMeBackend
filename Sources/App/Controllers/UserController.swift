@@ -25,7 +25,7 @@ final class UserController {
     }
 
     func store(_ req: Request) throws -> Future<UserResponse> {
-        return try req.content.decode(UserRequest.self)
+        try req.content.decode(UserRequest.self)
             .flatMap { userRequest in
                 let hasher = try req.make(BCryptDigest.self)
                 let password = try hasher.hash(userRequest.password, cost: 7)
@@ -79,7 +79,7 @@ final class UserController {
     }
 
     func loginUser(_ req: Request) throws -> Future<Session> {
-        return try req.content.decode(LoginRequest.self)
+        try req.content.decode(LoginRequest.self)
             .flatMap { loginRequest -> Future<User?> in
                 let verifier = try req.make(BCryptDigest.self)
                 return User.authenticate(username: loginRequest.email,

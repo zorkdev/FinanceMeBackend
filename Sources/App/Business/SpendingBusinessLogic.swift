@@ -151,7 +151,7 @@ final class SpendingBusinessLogic {
     }
 
     func updateDailySpendingAverage(user: User, on req: Request) throws -> Future<Void> {
-        return try calculateDailySpendingAverage(for: user, on: req)
+        try calculateDailySpendingAverage(for: user, on: req)
             .flatMap { dailySpending in
                 try self.calculateDailyTravelSpending(for: user, on: req).map { (dailySpending, $0) }
             }.flatMap { dailySpending, travelSpending in
@@ -406,7 +406,7 @@ private extension SpendingBusinessLogic {
     }
 
     func calculateAmountSum(from transactions: [Transaction]) -> Double {
-        return transactions
+        transactions
             .compactMap { $0.amount }
             .reduce(0, +)
     }
@@ -434,7 +434,7 @@ extension Array where Element: Transaction {
     }
 
     func filterAmexTransactions() -> [Transaction] {
-        return filter {
+        filter {
             if $0.narrative == SpendingBusinessLogic.Constants.internalAmexGoalNarrative {
                 return $0.direction == .outbound
             }
