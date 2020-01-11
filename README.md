@@ -19,6 +19,6 @@ $ open Package.swift
 
 Environment variables required:
 
-`APNS_CERT`: Certificate for APNS
-`APNS_CERT_PW`: Password for APNS certificate
+`APNS_CERT`: Certificate for APNS  
+`APNS_CERT_PW`: Password for APNS certificate  
 `DATABASE_URL`: URL of the database
