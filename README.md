@@ -17,6 +17,8 @@ $ cd FinanceMeBackend
 $ open Package.swift
 ```
 
+To lint and test the project use the `test.sh` script.
+
 Environment variables required:
 
 `APNS_CERT`: Certificate for APNS  
