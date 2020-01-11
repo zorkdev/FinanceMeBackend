@@ -3,24 +3,24 @@ import Vapor
 final class Shell: Service {
     private var worker: Container
 
-    public init(worker: Container) throws{
+    init(worker: Container) throws {
         self.worker = worker
     }
 
     func execute(commandName: String, arguments: [String] = []) throws -> Future<Data> {
-        return try bash(commandName: commandName, arguments:arguments)
+        return try bash(commandName: commandName, arguments: arguments)
     }
 
     private func bash(commandName: String, arguments: [String]) throws -> Future<Data> {
-        return executeShell(command: "/bin/bash" , arguments:[ "-l", "-c", "which \(commandName)" ])
+        return executeShell(command: "/bin/bash", arguments: [ "-l", "-c", "which \(commandName)" ])
             .map(to: String.self) { data in
                 guard let commandPath = String(data: data, encoding: .utf8) else {
                     throw Abort(.internalServerError)
                 }
                 return commandPath.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
             }.flatMap(to: Data.self) { path in
-                return self.executeShell(command: path, arguments: arguments)
-        }
+                self.executeShell(command: path, arguments: arguments)
+            }
     }
 
     private func executeShell(command: String, arguments: [String] = []) -> Future<Data> {

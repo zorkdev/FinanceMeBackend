@@ -2,4 +2,5 @@
 .build
 .swiftpm
 xcuserdata
+*.xcodeproj
 *.pem

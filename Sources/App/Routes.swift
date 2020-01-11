@@ -18,7 +18,7 @@ enum Routes: String {
 
 public func routes(_ router: Router) throws {
     router.get { req in
-        return req.redirect(to: "index.html")
+        req.redirect(to: "index.html")
     }
 
     let apiGroup = router.grouped(Routes.api.rawValue)

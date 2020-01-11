@@ -26,19 +26,20 @@ final class TransactionsBusinessLogic {
                                                                                 from: neededFrom,
                                                                                 on: req)
                         .flatMap { transactions in
-                            transactions.forEach({ $0.userID = id })
+                            transactions.forEach { $0.userID = id }
                             return transactions
-                                .filter { calendar.compare($0.created,
-                                                           to: neededFrom,
-                                                           toGranularity: .second) == .orderedDescending }
-                                .map { transaction in
+                                .filter {
+                                    calendar.compare($0.created,
+                                                     to: neededFrom,
+                                                     toGranularity: .second) == .orderedDescending
+                                }.map { transaction in
                                     transaction.create(on: req).catchFlatMap { _ in transaction.update(on: req) }
                                 }.flatten(on: req)
-                        }.flatMap { (transactions: [Transaction]) -> Future<[Transaction]> in
-                            return try self.fetchTransactions(for: user, from: from, to: now, on: req)
-                    }
+                        }.flatMap { (_: [Transaction]) -> Future<[Transaction]> in
+                            try self.fetchTransactions(for: user, from: from, to: now, on: req)
+                        }
                 }
-        }
+            }
     }
 
     func updateTransactions(user: User, on req: Request) throws -> Future<[Transaction]> {

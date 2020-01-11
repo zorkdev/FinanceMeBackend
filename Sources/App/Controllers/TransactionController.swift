@@ -18,7 +18,7 @@ final class TransactionController {
             .flatMap { transaction in
                 guard transaction.userID == user.id else { throw Abort(.notFound) }
                 return req.eventLoop.newSucceededFuture(result: transaction.response)
-        }
+            }
     }
 
     func store(_ req: Request) throws -> Future<TransactionResponse> {
@@ -39,11 +39,10 @@ final class TransactionController {
 
                 return transaction.save(on: req)
                     .flatMap { transaction in
-                        return try self.pushNotificationController.sendNotification(user: user,
-                                                                                    on: req)
-                            .map { _ in return transaction.response }
-                }
-        }
+                        try self.pushNotificationController.sendNotification(user: user, on: req)
+                            .map { _ in transaction.response }
+                    }
+            }
     }
 
     func replace(_ req: Request) throws -> Future<TransactionResponse> {
@@ -60,10 +59,10 @@ final class TransactionController {
                         transaction.created = transactionResponse.created
                         transaction.narrative = transactionResponse.narrative
                         transaction.source = transactionResponse.source
-                        return transaction.save(on: req).flatMap { transaction in
-                            return try self.pushNotificationController.sendNotification(user: user, on: req)}
-                            .map { _ in return transaction.response }
-                }
+                        return transaction.save(on: req).flatMap { _ in
+                            try self.pushNotificationController.sendNotification(user: user, on: req)
+                        }.map { _ in transaction.response }
+                    }
             }
     }
 
@@ -75,14 +74,15 @@ final class TransactionController {
             .flatMap { transaction -> Future<Void> in
                 guard transaction.userID == userID else { throw Abort(.notFound) }
                 return transaction.delete(on: req)
-            }.flatMap { _ in return try self.pushNotificationController.sendNotification(user: user,
-                                                                                         on: req)}
-            .transform(to: .ok)
+            }.flatMap { _ in
+                try self.pushNotificationController.sendNotification(user: user, on: req)
+            }.transform(to: .ok)
     }
 
     func handlePayload(_ req: Request) throws -> Future<HTTPStatus> {
         _ = try? req.content.decode(TransactionPayload.self)
             .flatMap { payload -> Future<[Data]> in
+                // swiftlint:disable:next first_where
                 return User
                     .query(on: req)
                     .filter(\.customerUid == payload.customerUid)
@@ -90,9 +90,10 @@ final class TransactionController {
                     .flatMap { user in
                         guard let user = user else { throw Abort(.notFound) }
                         return try self.transactionsBusinessLogic.getTransactions(user: user, on: req)
-                            .flatMap { _ in return try self.pushNotificationController.sendNotification(user: user,
-                                                                                                        on: req)}
-                }
+                            .flatMap { _ in
+                                try self.pushNotificationController.sendNotification(user: user, on: req)
+                            }
+                    }
             }.catch { try? req.make(Logger.self).error("\($0)") }
 
         return req.eventLoop.newSucceededFuture(result: .ok)

@@ -25,12 +25,13 @@ final class StarlingTransactionsController {
                  token: token,
                  parameters: parameters,
                  on: con)
-            .flatMap { try $0.content.decode(StarlingTransactionList.self,
-                                             using: StarlingTransactionsController.decoder) }
-            .map { $0.feedItems.compactMap { Transaction(from: $0) } }
+            .flatMap {
+                try $0.content.decode(StarlingTransactionList.self,
+                                      using: StarlingTransactionsController.decoder)
+            }.map { $0.feedItems.compactMap { Transaction(from: $0) } }
             .catchMap { error in
                 try con.make(Logger.self).error("\(error)")
                 throw error
-        }
+            }
     }
 }

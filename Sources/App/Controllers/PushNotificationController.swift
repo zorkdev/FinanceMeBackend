@@ -22,7 +22,7 @@ final class PushNotificationController {
                 }
                 user.deviceTokens.append(token)
                 return user.save(on: req).transform(to: .ok)
-        }
+            }
     }
 
     func sendNotification(user: User, on req: Request) throws -> Future<[Data]> {
@@ -32,10 +32,11 @@ final class PushNotificationController {
 
     func sendNotification(user: User, allowance: Double, on req: Request) throws -> Future<[Data]> {
         return try user.deviceTokens
-            .map { try self.sendNotification(deviceToken: $0,
-                                             allowance: allowance,
-                                             on: req) }
-            .flatten(on: req)
+            .map {
+                try self.sendNotification(deviceToken: $0,
+                                          allowance: allowance,
+                                          on: req)
+            }.flatten(on: req)
     }
 
     func sendNotification(deviceToken: String, allowance: Double, on req: Request) throws -> Future<Data> {

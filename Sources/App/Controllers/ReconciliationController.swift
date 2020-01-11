@@ -10,12 +10,13 @@ final class ReconciliationController {
             .query(on: req)
             .all()
             .flatMap { users in
-                return try users.map { user in
-                    return try self.spendingBusinessLogic.updateDailySpendingAverage(user: user, on: req)
+                try users.map { user in
+                    try self.spendingBusinessLogic.updateDailySpendingAverage(user: user, on: req)
                         .flatMap { _ in try self.transactionsBusinessLogic.updateTransactions(user: user, on: req) }
                         .flatMap { _ in try self.spendingBusinessLogic.calculateEndOfMonthBalance(for: user, on: req) }
-                        .flatMap { _ in return try self.pushNotificationController.sendNotification(user: user,
-                                                                                                    on: req)}
+                        .flatMap { _ in
+                            try self.pushNotificationController.sendNotification(user: user, on: req)
+                        }
                 }.flatten(on: req)
             }.catch { try? req.make(Logger.self).error("\($0)") }
 

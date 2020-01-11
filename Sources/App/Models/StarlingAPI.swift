@@ -10,7 +10,7 @@ enum StarlingAPI {
         switch self {
         case .getBalance(let accountUid):
             return "accounts/\(accountUid)/balance"
-        case .getTransactions(let accountUid, let categoryUid):
+        case let .getTransactions(accountUid, categoryUid):
             return "feed/account/\(accountUid)/category/\(categoryUid)"
         }
     }

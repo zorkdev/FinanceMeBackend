@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Vapor
 import FluentPostgreSQL
 
@@ -11,6 +12,7 @@ final class SpendingBusinessLogic {
 
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
 
+    // swiftlint:disable:next function_body_length
     func calculateEndOfMonthBalance(for user: User, on conn: DatabaseConnectable) throws -> Future<Void> {
         guard let id = user.id else { throw Abort(.internalServerError) }
 
@@ -37,8 +39,8 @@ final class SpendingBusinessLogic {
                     .flatMap { regulars in
                         try self.transactionsBusinessLogic.getSavingsTransactions(for: user, on: conn)
                             .map { (regulars, $0) }
-                    }.flatMap { (regularTransactions, savingsTransactions) in
-                        return try user.transactions
+                    }.flatMap { regularTransactions, savingsTransactions in
+                        try user.transactions
                             .query(on: conn)
                             .filter(\.source != .externalRegularOutbound)
                             .filter(\.source != .externalRegularInbound)
@@ -102,8 +104,8 @@ final class SpendingBusinessLogic {
                         logger.info("Remaining allowance: \(remainingAllowance)")
 
                         return remainingAllowance
-                }
-        }
+                    }
+            }
     }
 
     func calculateCurrentMonthSummary(for user: User, on req: Request) throws -> Future<CurrentMonthSummary> {
@@ -145,7 +147,7 @@ final class SpendingBusinessLogic {
                                                               forecast: forecast,
                                                               spending: spendingTotal)
                 return currentmonthSummary
-        }
+            }
     }
 
     func updateDailySpendingAverage(user: User, on req: Request) throws -> Future<Void> {
@@ -207,7 +209,7 @@ private extension SpendingBusinessLogic {
 
         return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
             .flatMap { regularTransactions in
-                return try user.transactions
+                try user.transactions
                     .query(on: conn)
                     .filter(\.source != .externalRegularOutbound)
                     .filter(\.source != .externalRegularInbound)
@@ -227,13 +229,14 @@ private extension SpendingBusinessLogic {
                         var filteredTransactions = transactions
                         if withTravel == false {
                             filteredTransactions = filteredTransactions
-                                .filter({ !($0.narrative == Constants.travelNarrative &&
-                                    $0.created > now.startOfDay) })
+                                .filter {
+                                    !($0.narrative == Constants.travelNarrative && $0.created > now.startOfDay)
+                                }
                         }
 
                         return self.calculateAmountSum(from: transactions)
-                }
-        }
+                    }
+            }
     }
 
     func calculateSpendingTotalThisMonth(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
@@ -241,7 +244,7 @@ private extension SpendingBusinessLogic {
 
         return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
             .flatMap { regularTransactions in
-                return try user.transactions
+                try user.transactions
                     .query(on: conn)
                     .filter(\.source != .externalRegularOutbound)
                     .filter(\.source != .externalRegularInbound)
@@ -255,7 +258,7 @@ private extension SpendingBusinessLogic {
                     .map { $0.filter(regularTransactions: regularTransactions) }
                     .map { $0.filterAmexTransactions() }
                     .map { self.calculateAmountSum(from: $0) }
-        }
+            }
     }
 
     func calculateSpendingLimit(for user: User, on conn: DatabaseConnectable) throws -> Future<Double> {
@@ -265,7 +268,7 @@ private extension SpendingBusinessLogic {
 
         return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
             .flatMap { regularTransactions in
-                return try user.transactions
+                try user.transactions
                     .query(on: conn)
                     .filter(\.source != .externalRegularOutbound)
                     .filter(\.source != .externalRegularInbound)
@@ -284,7 +287,7 @@ private extension SpendingBusinessLogic {
                     .map { $0.filter(regularTransactions: regularTransactions) }
                     .map { $0.filterAmexTransactions() }
                     .flatMap { largeTransactions in
-                        return try user.endOfMonthSummaries
+                        try user.endOfMonthSummaries
                             .query(on: conn)
                             .sort(\.created, .descending)
                             .first().map { lastBalance in
@@ -293,9 +296,9 @@ private extension SpendingBusinessLogic {
                                     carryOver = lastBalance
                                 }
                                 return self.calculateAmountSum(from: regularTransactions + largeTransactions) + carryOver
-                        }
-                }
-        }
+                            }
+                    }
+            }
     }
 
     func calculateCarryOverFromPreviousWeeks(for user: User,
@@ -311,7 +314,7 @@ private extension SpendingBusinessLogic {
 
         return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
             .flatMap { regularTransactions in
-                return try user.transactions
+                try user.transactions
                     .query(on: conn)
                     .filter(\.source != .externalRegularOutbound)
                     .filter(\.source != .externalRegularInbound)
@@ -333,8 +336,8 @@ private extension SpendingBusinessLogic {
                         let carryOver = dailyLimit * Double(daysSincePayday) + spending
 
                         return carryOver < 0 ? carryOver : 0
-                }
-        }
+                    }
+            }
     }
 
     func calculateDailySpendingAverage(for user: User,
@@ -343,7 +346,7 @@ private extension SpendingBusinessLogic {
 
         return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
             .flatMap { regularTransactions in
-                return try user.transactions
+                try user.transactions
                     .query(on: conn)
                     .filter(\.source != .externalRegularOutbound)
                     .filter(\.source != .externalRegularInbound)
@@ -363,8 +366,8 @@ private extension SpendingBusinessLogic {
                         let amountSum = self.calculateAmountSum(from: transactions)
 
                         return amountSum / Double(numberOfDays)
-                }
-        }
+                    }
+            }
     }
 
     func calculateRemainingTravelSpendingThisWeek(for user: User) -> Double {
@@ -399,7 +402,7 @@ private extension SpendingBusinessLogic {
                 let numberOfDays = Double(today.numberOfDays(from: firstDate))
                 guard numberOfDays != 0 else { return 0 }
                 return self.calculateAmountSum(from: transactions) / numberOfDays
-        }
+            }
     }
 
     func calculateAmountSum(from transactions: [Transaction]) -> Double {
@@ -415,7 +418,7 @@ extension Array where Element: Transaction {
             .compactMap { transaction in
                 guard let narrative = transaction.internalNarrative else { return nil }
                 return (narrative, transaction.internalAmount)
-        }
+            }
 
         return self.filter { transaction in
             let mappedTransaction = (transaction.narrative, transaction.amount)
@@ -426,7 +429,7 @@ extension Array where Element: Transaction {
                     } else {
                         return mappedTransaction.0 == regularTransaction.0
                     }
-            }
+                }
         }
     }
 

@@ -13,6 +13,6 @@ final class StarlingBalanceController {
             .catchMap { error in
                 try con.make(Logger.self).error("\(error)")
                 throw error
-        }
+            }
     }
 }
