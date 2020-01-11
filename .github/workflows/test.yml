@@ -1,0 +1,20 @@
+name: Test
+
+on: [push]
+
+jobs:
+  test-macOS:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Test
+      run: sh test.sh
+
+  test-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: swift:latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Test
+      run: swift test
