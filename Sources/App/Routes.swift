@@ -2,8 +2,6 @@ import Vapor
 import Authentication
 
 enum Routes: String {
-    case root = "/"
-    case index = "index.html"
     case api = "api"
     case login = "login"
     case users = "users"
@@ -17,10 +15,6 @@ enum Routes: String {
 }
 
 public func routes(_ router: Router) throws {
-    router.get { req in
-        req.redirect(to: "index.html")
-    }
-
     let apiGroup = router.grouped(Routes.api.rawValue)
     let tokenGroup = apiGroup.grouped(User.tokenAuthMiddleware())
 

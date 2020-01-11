@@ -56,6 +56,7 @@ extension Date {
         switch direction {
         case .forward: monthModifier = self.day >= day ? 1 : 0
         case .backward: monthModifier = self.day < day ? -1 : 0
+        @unknown default: monthModifier = 0
         }
 
         return self.add(month: monthModifier).set(day: day).startOfDay
