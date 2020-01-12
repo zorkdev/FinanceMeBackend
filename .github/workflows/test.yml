@@ -7,10 +7,11 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Install OpenSSL
-      run: brew install libressl
     - name: Test
-      run: sh test.sh
+      run: |
+        brew tap vapor/tap
+        brew install vapor/tap/vapor
+        sh test.sh
 
   test-linux:
     runs-on: ubuntu-latest
@@ -19,4 +20,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Test
-      run: swift test
+      run: |
+        eval "$(curl -sL https://apt.vapor.sh)"
+        sudo apt-get install swift vapor
+        swift test
