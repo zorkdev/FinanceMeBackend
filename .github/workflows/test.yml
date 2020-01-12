@@ -9,8 +9,7 @@ jobs:
     - uses: actions/checkout@v1
     - name: Test
       run: |
-        brew tap vapor/tap
-        brew install vapor/tap/vapor
+        brew install libressl
         sh test.sh
 
   test-linux:
@@ -21,6 +20,8 @@ jobs:
     - uses: actions/checkout@v1
     - name: Test
       run: |
-        eval "$(curl -sL https://apt.vapor.sh)"
+        wget -q https://repo.vapor.codes/apt/keyring.gpg -O- | sudo apt-key add -
+        echo "deb https://repo.vapor.codes/apt $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/vapor.list
+        sudo apt-get update
         sudo apt-get install swift vapor
         swift test
