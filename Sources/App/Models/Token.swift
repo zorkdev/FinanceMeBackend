@@ -21,7 +21,7 @@ final class Token: PostgreSQLUUIDModel {
     var userID: User.ID
 
     var user: Parent<Token, User> {
-        return parent(\.userID)
+        parent(\.userID)
     }
 
     init(id: UUID? = nil,
@@ -37,11 +37,11 @@ extension Token: Authentication.Token {
     typealias UserType = User
 
     static var userIDKey: WritableKeyPath<Token, User.ID> {
-        return \.userID
+        \.userID
     }
 
     static var tokenKey: WritableKeyPath<Token, String> {
-        return \.token
+        \.token
     }
 
     static func generate(for user: User) throws -> Token {

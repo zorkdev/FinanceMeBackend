@@ -12,7 +12,7 @@ struct TransactionResponse: Content {
 
 enum TransactionDirection: String, Content, ReflectionDecodable {
     static func reflectDecoded() throws -> (TransactionDirection, TransactionDirection) {
-        return (.none, .outbound)
+        (.none, .outbound)
     }
 
     case none = "NONE"
@@ -22,7 +22,7 @@ enum TransactionDirection: String, Content, ReflectionDecodable {
 
 enum TransactionSource: String, Equatable, Content, ReflectionDecodable {
     static func reflectDecoded() throws -> (TransactionSource, TransactionSource) {
-        return (.directCredit, .directDebit)
+        (.directCredit, .directDebit)
     }
 
     case cashDeposit = "CASH_DEPOSIT"
@@ -115,16 +115,16 @@ final class Transaction: PostgreSQLUUIDModel {
     var userID: User.ID
 
     var user: Parent<Transaction, User> {
-        return parent(\.userID)
+        parent(\.userID)
     }
 
     var response: TransactionResponse {
-        return TransactionResponse(id: id,
-                                   amount: amount,
-                                   direction: direction,
-                                   created: created,
-                                   narrative: narrative,
-                                   source: source)
+        TransactionResponse(id: id,
+                            amount: amount,
+                            direction: direction,
+                            created: created,
+                            narrative: narrative,
+                            source: source)
     }
 
     init(id: UUID? = nil,

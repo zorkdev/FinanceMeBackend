@@ -38,14 +38,14 @@ final class EndOfMonthSummary: PostgreSQLUUIDModel {
     var userID: User.ID
 
     var user: Parent<EndOfMonthSummary, User> {
-        return parent(\.userID)
+        parent(\.userID)
     }
 
     var response: EndOfMonthSummaryResponse {
-        return EndOfMonthSummaryResponse(id: id,
-                                         created: created,
-                                         balance: balance,
-                                         savings: savings)
+        EndOfMonthSummaryResponse(id: id,
+                                  created: created,
+                                  balance: balance,
+                                  savings: savings)
     }
 
     init(id: UUID? = nil,

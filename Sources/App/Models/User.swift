@@ -50,25 +50,25 @@ final class User: PostgreSQLUUIDModel {
     var categoryUid: UUID?
 
     var token: Children<User, Token> {
-        return children(\.userID)
+        children(\.userID)
     }
 
     var transactions: Children<User, Transaction> {
-        return children(\.userID)
+        children(\.userID)
     }
 
     var endOfMonthSummaries: Children<User, EndOfMonthSummary> {
-        return children(\.userID)
+        children(\.userID)
     }
 
     var response: UserResponse {
-        return UserResponse(id: id,
-                            name: name,
-                            payday: payday,
-                            startDate: startDate,
-                            largeTransaction: largeTransaction,
-                            allowance: 0,
-                            balance: 0)
+        UserResponse(id: id,
+                     name: name,
+                     payday: payday,
+                     startDate: startDate,
+                     largeTransaction: largeTransaction,
+                     allowance: 0,
+                     balance: 0)
     }
 
     init(id: UUID? = nil,
@@ -104,11 +104,11 @@ extension User: TokenAuthenticatable {
 
 extension User: PasswordAuthenticatable {
     static var usernameKey: WritableKeyPath<User, String> {
-        return \.email
+        \.email
     }
 
     static var passwordKey: WritableKeyPath<User, String> {
-        return \.password
+        \.password
     }
 }
 

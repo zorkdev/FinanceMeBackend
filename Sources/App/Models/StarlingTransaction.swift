@@ -51,13 +51,13 @@ struct StarlingTransaction: Content {
 
     var narrative: String {
         switch counterPartyType {
-        case .payee?: return reference ?? counterPartyName
+        case .payee: return reference ?? counterPartyName
         default: return counterPartyName
         }
     }
 
     var signedAmount: Double {
-        return direction == .out ? -amount.doubleValue : amount.doubleValue
+        direction == .out ? -amount.doubleValue : amount.doubleValue
     }
 
     var isStatusValid: Bool {
