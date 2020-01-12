@@ -1,8 +1,5 @@
 excluded:
   - .build
-  - XCTestManifests.swift
-  - Tests/LinuxMain.swift
-  - Tests/*/XCTestManifests.swift
 
 identifier_name:
   min_length: 2
