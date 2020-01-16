@@ -12,6 +12,7 @@ enum Routes: String {
     case endOfMonthSummaries = "endOfMonthSummaries"
     case deviceToken = "deviceToken"
     case metrics = "metrics"
+    case health = "health"
 }
 
 public func routes(_ router: Router) throws {
@@ -37,4 +38,7 @@ public func routes(_ router: Router) throws {
 
     let metricController = MetricController()
     metricController.addPublicRoutes(to: apiGroup)
+
+    let healthController = HealthController()
+    healthController.addPublicRoutes(to: apiGroup)
 }
