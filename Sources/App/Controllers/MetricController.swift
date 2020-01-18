@@ -2,7 +2,7 @@ import Vapor
 import FluentPostgreSQL
 
 final class MetricController {
-    func store(_ req: Request) throws -> Future<HTTPStatus> {
+    func store(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
         guard let data = req.http.body.data else { return req.eventLoop.newSucceededFuture(result: .badRequest) }
         let metric = Metric(payload: data)
         return metric.save(on: req).map { _ in HTTPStatus.ok }

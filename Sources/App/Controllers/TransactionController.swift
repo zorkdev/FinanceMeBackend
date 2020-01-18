@@ -5,13 +5,13 @@ final class TransactionController {
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
     private let pushNotificationController = PushNotificationController()
 
-    func index(_ req: Request) throws -> Future<[TransactionResponse]> {
+    func index(_ req: Request) throws -> EventLoopFuture<[TransactionResponse]> {
         let user = try req.requireAuthenticated(User.self)
         return try transactionsBusinessLogic.getExternalTransactions(for: user, on: req)
             .map { $0.map { $0.response } }
     }
 
-    func show(_ req: Request) throws -> Future<TransactionResponse> {
+    func show(_ req: Request) throws -> EventLoopFuture<TransactionResponse> {
         let user = try req.requireAuthenticated(User.self)
 
         return try req.parameters.next(Transaction.self)
@@ -21,7 +21,7 @@ final class TransactionController {
             }
     }
 
-    func store(_ req: Request) throws -> Future<TransactionResponse> {
+    func store(_ req: Request) throws -> EventLoopFuture<TransactionResponse> {
         let user = try req.requireAuthenticated(User.self)
         guard let userID = user.id else { throw Abort(.notFound) }
 
@@ -45,12 +45,12 @@ final class TransactionController {
             }
     }
 
-    func replace(_ req: Request) throws -> Future<TransactionResponse> {
+    func replace(_ req: Request) throws -> EventLoopFuture<TransactionResponse> {
         let user = try req.requireAuthenticated(User.self)
         guard let userID = user.id else { throw Abort(.notFound) }
 
         return try req.parameters.next(Transaction.self)
-            .flatMap { transaction -> Future<TransactionResponse> in
+            .flatMap { transaction -> EventLoopFuture<TransactionResponse> in
                 guard transaction.userID == userID else { throw Abort(.notFound) }
                 return try req.content.decode(TransactionResponse.self)
                     .flatMap { transactionResponse in
@@ -66,12 +66,12 @@ final class TransactionController {
             }
     }
 
-    func destroy(_ req: Request) throws -> Future<HTTPStatus> {
+    func destroy(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
         let user = try req.requireAuthenticated(User.self)
         guard let userID = user.id else { throw Abort(.notFound) }
 
         return try req.parameters.next(Transaction.self)
-            .flatMap { transaction -> Future<Void> in
+            .flatMap { transaction -> EventLoopFuture<Void> in
                 guard transaction.userID == userID else { throw Abort(.notFound) }
                 return transaction.delete(on: req)
             }.flatMap { _ in
@@ -79,9 +79,9 @@ final class TransactionController {
             }.transform(to: .ok)
     }
 
-    func handlePayload(_ req: Request) throws -> Future<HTTPStatus> {
+    func handlePayload(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
         _ = try? req.content.decode(TransactionPayload.self)
-            .flatMap { payload -> Future<[Data]> in
+            .flatMap { payload -> EventLoopFuture<[Data]> in
                 // swiftlint:disable:next first_where
                 return User
                     .query(on: req)

@@ -6,7 +6,7 @@ final class UserController {
     private let pushNotificationController = PushNotificationController()
     private let starlingBalanceController = StarlingBalanceController()
 
-    func showCurrentUser(_ req: Request) throws -> Future<UserResponse> {
+    func showCurrentUser(_ req: Request) throws -> EventLoopFuture<UserResponse> {
         let user = try req.requireAuthenticated(User.self)
 
         let allowance = try spendingBusinessLogic.calculateAllowance(for: user, on: req)
@@ -24,7 +24,7 @@ final class UserController {
             }
     }
 
-    func store(_ req: Request) throws -> Future<UserResponse> {
+    func store(_ req: Request) throws -> EventLoopFuture<UserResponse> {
         try req.content.decode(UserRequest.self)
             .flatMap { userRequest in
                 let hasher = try req.make(BCryptDigest.self)
@@ -51,7 +51,7 @@ final class UserController {
             }
     }
 
-    func updateCurrentUser(_ req: Request) throws -> Future<UserResponse> {
+    func updateCurrentUser(_ req: Request) throws -> EventLoopFuture<UserResponse> {
         let user = try req.requireAuthenticated(User.self)
         return try req.content.decode(UserResponse.self)
             .flatMap { updatedUser in
@@ -78,9 +78,9 @@ final class UserController {
             }
     }
 
-    func loginUser(_ req: Request) throws -> Future<Session> {
+    func loginUser(_ req: Request) throws -> EventLoopFuture<Session> {
         try req.content.decode(LoginRequest.self)
-            .flatMap { loginRequest -> Future<User?> in
+            .flatMap { loginRequest -> EventLoopFuture<User?> in
                 let verifier = try req.make(BCryptDigest.self)
                 return User.authenticate(username: loginRequest.email,
                                          password: loginRequest.password,

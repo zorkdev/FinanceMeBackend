@@ -11,7 +11,7 @@ final class PushNotificationController {
 
     private let spendingBusinessLogic = SpendingBusinessLogic()
 
-    func store(_ req: Request) throws -> Future<HTTPStatus> {
+    func store(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
         let user = try req.requireAuthenticated(User.self)
 
         return try req.content.decode(DeviceTokenRequest.self)
@@ -25,12 +25,12 @@ final class PushNotificationController {
             }
     }
 
-    func sendNotification(user: User, on req: Request) throws -> Future<[Data]> {
+    func sendNotification(user: User, on req: Request) throws -> EventLoopFuture<[Data]> {
         try spendingBusinessLogic.calculateAllowance(for: user, on: req)
             .flatMap { try self.sendNotification(user: user, allowance: $0, on: req) }
     }
 
-    func sendNotification(user: User, allowance: Double, on req: Request) throws -> Future<[Data]> {
+    func sendNotification(user: User, allowance: Double, on req: Request) throws -> EventLoopFuture<[Data]> {
         try user.deviceTokens
             .map {
                 try self.sendNotification(deviceToken: $0,
@@ -39,7 +39,7 @@ final class PushNotificationController {
             }.flatten(on: req)
     }
 
-    func sendNotification(deviceToken: String, allowance: Double, on req: Request) throws -> Future<Data> {
+    func sendNotification(deviceToken: String, allowance: Double, on req: Request) throws -> EventLoopFuture<Data> {
         let shell = try Shell.makeService(for: req)
         let pw = ProcessInfo.processInfo.environment["APNS_CERT_PW"]!
 

@@ -18,7 +18,7 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     middlewares.use(ErrorMiddleware.self)
     services.register(middlewares)
 
-    let databaseURL = ProcessInfo.processInfo.environment["DATABASE_URL"]!
+    let databaseURL = Environment.get("DATABASE_URL")!
     let psqlConfig = PostgreSQLDatabaseConfig(url: databaseURL, transport: .unverifiedTLS)!
     services.register(psqlConfig)
 
@@ -30,7 +30,7 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     migrations.add(model: Metric.self, database: .psql)
     services.register(migrations)
 
-    let apnsCert = ProcessInfo.processInfo.environment["APNS_CERT"]!.data(using: .utf8)!
+    let apnsCert = Environment.get("APNS_CERT")!.data(using: .utf8)!
     let directory = DirectoryConfig.detect()
     let workingDirectory = directory.workDir
     let saveURL = URL(fileURLWithPath: workingDirectory).appendingPathComponent("apns.pem", isDirectory: false)

@@ -5,7 +5,7 @@ final class ReconciliationController {
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
     private let pushNotificationController = PushNotificationController()
 
-    func store(_ req: Request) throws -> Future<HTTPStatus> {
+    func store(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
         _ = User
             .query(on: req)
             .all()

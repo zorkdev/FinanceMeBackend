@@ -5,7 +5,7 @@ final class TransactionsBusinessLogic {
     @discardableResult
     func getTransactions(user: User,
                          from: Date? = nil,
-                         on req: Request) throws -> Future<[Transaction]> {
+                         on req: Request) throws -> EventLoopFuture<[Transaction]> {
         guard let id = user.id else { throw Abort(.internalServerError) }
 
         return try calculateLatestTransactionDate(for: user, on: req)
@@ -35,14 +35,14 @@ final class TransactionsBusinessLogic {
                                 }.map { transaction in
                                     transaction.create(on: req).catchFlatMap { _ in transaction.update(on: req) }
                                 }.flatten(on: req)
-                        }.flatMap { (_: [Transaction]) -> Future<[Transaction]> in
+                        }.flatMap { (_: [Transaction]) -> EventLoopFuture<[Transaction]> in
                             try self.fetchTransactions(for: user, from: from, to: now, on: req)
                         }
                 }
             }
     }
 
-    func updateTransactions(user: User, on req: Request) throws -> Future<[Transaction]> {
+    func updateTransactions(user: User, on req: Request) throws -> EventLoopFuture<[Transaction]> {
         guard let id = user.id else { throw Abort(.internalServerError) }
 
         return try deleteStarlingTransactions(for: user, on: req)
@@ -57,7 +57,7 @@ final class TransactionsBusinessLogic {
             }
     }
 
-    func deleteStarlingTransactions(for user: User, on conn: DatabaseConnectable) throws -> Future<Void> {
+    func deleteStarlingTransactions(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<Void> {
         try user.transactions
             .query(on: conn)
             .filter(\.source != .externalRegularOutbound)
@@ -69,7 +69,7 @@ final class TransactionsBusinessLogic {
             .delete()
     }
 
-    func getRegularTransactions(for user: User, on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
+    func getRegularTransactions(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<[Transaction]> {
         try user.transactions
             .query(on: conn)
             .group(.or) { group in
@@ -80,14 +80,14 @@ final class TransactionsBusinessLogic {
             .all()
     }
 
-    func getSavingsTransactions(for user: User, on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
+    func getSavingsTransactions(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<[Transaction]> {
         try user.transactions
             .query(on: conn)
             .filter(\.source == .externalSavings)
             .all()
     }
 
-    func getExternalTransactions(for user: User, on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
+    func getExternalTransactions(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<[Transaction]> {
         try user.transactions
             .query(on: conn)
             .group(.or) { group in
@@ -104,7 +104,7 @@ final class TransactionsBusinessLogic {
 // MARK: - Private methods
 
 private extension TransactionsBusinessLogic {
-    func calculateLatestTransactionDate(for user: User, on conn: DatabaseConnectable) throws -> Future<Date> {
+    func calculateLatestTransactionDate(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<Date> {
         try user.transactions
             .query(on: conn)
             .filter(\.source != .externalRegularOutbound)
@@ -120,7 +120,7 @@ private extension TransactionsBusinessLogic {
     func fetchTransactions(for user: User,
                            from: Date,
                            to: Date,
-                           on conn: DatabaseConnectable) throws -> Future<[Transaction]> {
+                           on conn: DatabaseConnectable) throws -> EventLoopFuture<[Transaction]> {
         try user.transactions
             .query(on: conn)
             .filter(\.created >= from)

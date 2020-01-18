@@ -9,7 +9,7 @@ final class StarlingTransactionsController {
 
     func getTransactions(user: User,
                          from: Date? = nil,
-                         on con: Container) throws -> Future<[Transaction]> {
+                         on con: Container) throws -> EventLoopFuture<[Transaction]> {
         guard let token = user.sToken,
             let accountUid = user.accountUid,
             let categoryUid = user.categoryUid else { throw Abort(.internalServerError) }

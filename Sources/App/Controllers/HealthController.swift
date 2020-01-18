@@ -1,7 +1,7 @@
 import Vapor
 
 final class HealthController {
-    func show(_ req: Request) throws -> Future<Health> {
+    func show(_ req: Request) throws -> EventLoopFuture<Health> {
         req.eventLoop.newSucceededFuture(result: Health())
     }
 

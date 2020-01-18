@@ -7,11 +7,11 @@ final class Shell: Service {
         self.worker = worker
     }
 
-    func execute(commandName: String, arguments: [String] = []) throws -> Future<Data> {
+    func execute(commandName: String, arguments: [String] = []) throws -> EventLoopFuture<Data> {
         try bash(commandName: commandName, arguments: arguments)
     }
 
-    private func bash(commandName: String, arguments: [String]) throws -> Future<Data> {
+    private func bash(commandName: String, arguments: [String]) throws -> EventLoopFuture<Data> {
         executeShell(command: "/bin/bash", arguments: [ "-l", "-c", "which \(commandName)" ])
             .map(to: String.self) { data in
                 guard let commandPath = String(data: data, encoding: .utf8) else {
@@ -23,8 +23,8 @@ final class Shell: Service {
             }
     }
 
-    private func executeShell(command: String, arguments: [String] = []) -> Future<Data> {
-        Future.map(on: worker) {
+    private func executeShell(command: String, arguments: [String] = []) -> EventLoopFuture<Data> {
+        EventLoopFuture.map(on: worker) {
             let process = Process()
             process.launchPath = command
             process.arguments = arguments
