@@ -108,7 +108,7 @@ final class Transaction: PostgreSQLUUIDModel {
     var narrative: String
     var source: TransactionSource
 
-    let isArchived: Bool
+    var isArchived: Bool
     let internalNarrative: String?
     let internalAmount: Double?
 

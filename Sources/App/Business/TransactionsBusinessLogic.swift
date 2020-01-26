@@ -45,7 +45,8 @@ final class TransactionsBusinessLogic {
     func updateTransactions(user: User, on req: Request) throws -> EventLoopFuture<[Transaction]> {
         guard let id = user.id else { throw Abort(.internalServerError) }
 
-        return try deleteStarlingTransactions(for: user, on: req)
+        return try archiveTransactions(for: user, on: req)
+            .flatMap { _ in try self.deleteStarlingTransactions(for: user, on: req) }
             .flatMap { try self.calculateLatestTransactionDate(for: user, on: req) }
             .flatMap { try StarlingTransactionsController().getTransactions(user: user, from: $0, on: req) }
             .flatMap { transactions in
@@ -129,5 +130,19 @@ private extension TransactionsBusinessLogic {
             .filter(\.source != .externalRegularInbound)
             .filter(\.source != .externalSavings)
             .all()
+    }
+
+    func archiveTransactions(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<[Transaction]> {
+        try user.transactions
+            .query(on: conn)
+            .filter(\.isArchived == false)
+            .filter(\.created <= Date().add(month: -2))
+            .all()
+            .flatMap {
+                $0.map {
+                    $0.isArchived = true
+                    return $0.update(on: conn)
+                }.flatten(on: conn)
+            }
     }
 }
