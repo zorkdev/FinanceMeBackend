@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
-set -euxo pipefail
+set -euo pipefail
 
 swift run swiftlint --strict
 swift test
