@@ -267,8 +267,8 @@
         "repositoryURL": "https://github.com/vapor/url-encoded-form.git",
         "state": {
           "branch": null,
-          "revision": "44999b47d88ca2e0c0b893599b3240e342ba39ff",
-          "version": "1.0.7"
+          "revision": "20f68fbe7fac006d4d0617ea4edcba033227359e",
+          "version": "1.1.0"
         }
       },
       {
