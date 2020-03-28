@@ -1,11 +1,21 @@
 import Vapor
-import FluentPostgreSQL
+import Fluent
+import FluentPostgresDriver
 
-final class Metric: PostgreSQLUUIDModel {
-    static let entity = "metrics"
+extension FieldKey {
+    static var payload: Self { "payload" }
+}
 
+final class Metric: Model {
+    static let schema = "metrics"
+
+    @ID()
     var id: UUID?
+
+    @Field(key: .payload)
     var payload: JSONB
+
+    init() {}
 
     init(id: UUID? = nil,
          payload: Data) {
@@ -14,4 +24,15 @@ final class Metric: PostgreSQLUUIDModel {
     }
 }
 
-extension Metric: Migration {}
+struct CreateMetric: Migration {
+    func prepare(on database: Database) -> EventLoopFuture<Void> {
+        database.schema(Metric.schema)
+            .id()
+            .field(.payload, .custom(PostgresDataType.jsonb), .required)
+            .create()
+    }
+
+    func revert(on database: Database) -> EventLoopFuture<Void> {
+        database.schema(Metric.schema).delete()
+    }
+}

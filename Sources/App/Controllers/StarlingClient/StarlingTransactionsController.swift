@@ -9,10 +9,12 @@ final class StarlingTransactionsController {
 
     func getTransactions(user: User,
                          from: Date? = nil,
-                         on con: Container) throws -> EventLoopFuture<[Transaction]> {
+                         on req: Request) -> EventLoopFuture<[Transaction]> {
         guard let token = user.sToken,
             let accountUid = user.accountUid,
-            let categoryUid = user.categoryUid else { throw Abort(.internalServerError) }
+            let categoryUid = user.categoryUid else {
+                return req.eventLoop.makeFailedFuture(Abort(.internalServerError))
+        }
 
         var parameters = StarlingParameters()
 
@@ -20,17 +22,17 @@ final class StarlingTransactionsController {
             parameters.changesSince = Formatters.iso8601MillisecFormatter.string(from: from)
         }
 
-        return try StarlingClientController()
+        return StarlingClientController()
             .get(endpoint: .getTransactions(accountUid: accountUid, categoryUid: categoryUid),
                  token: token,
                  parameters: parameters,
-                 on: con)
-            .flatMap {
+                 on: req)
+            .flatMapThrowing {
                 try $0.content.decode(StarlingTransactionList.self,
                                       using: StarlingTransactionsController.decoder)
             }.map { $0.feedItems.compactMap { Transaction(from: $0) } }
-            .catchMap { error in
-                try con.make(Logger.self).error("\(error)")
+            .flatMapErrorThrowing { error in
+                req.logger.error("\(error)")
                 throw error
             }
     }

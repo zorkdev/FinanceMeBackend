@@ -1,6 +1,6 @@
 // swiftlint:disable file_length
 import Vapor
-import FluentPostgreSQL
+import Fluent
 
 final class SpendingBusinessLogic {
     enum Constants {
@@ -14,12 +14,14 @@ final class SpendingBusinessLogic {
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
 
     // swiftlint:disable:next function_body_length
-    func calculateEndOfMonthBalance(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<Void> {
-        guard let id = user.id else { throw Abort(.internalServerError) }
+    func calculateEndOfMonthBalance(for user: User, on conn: Database) -> EventLoopFuture<Void> {
+        guard let id = user.id else {
+            return conn.eventLoop.makeFailedFuture(Abort(.internalServerError))
+        }
 
-        return try user.endOfMonthSummaries
+        return user.$endOfMonthSummaries
             .query(on: conn)
-            .sort(\.created, .descending)
+            .sort(\.$created, .descending)
             .first()
             .flatMap { lastBalance in
                 let to: Date
@@ -27,7 +29,7 @@ final class SpendingBusinessLogic {
 
                 if let lastBalance = lastBalance {
                     guard lastBalance.created != Date().next(day: user.payday, direction: .backward) else {
-                        return conn.eventLoop.newSucceededFuture(result: ())
+                        return conn.eventLoop.makeSucceededFuture(())
                     }
                     from = lastBalance.created
                     to = from.startOfDay.next(day: user.payday, direction: .forward)
@@ -36,22 +38,22 @@ final class SpendingBusinessLogic {
                     from = to.startOfDay.next(day: user.payday, direction: .backward)
                 }
 
-                return try self.transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+                return self.transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
                     .flatMap { regulars in
-                        try self.transactionsBusinessLogic.getSavingsTransactions(for: user, on: conn)
+                        self.transactionsBusinessLogic.getSavingsTransactions(for: user, on: conn)
                             .map { (regulars, $0) }
                     }.flatMap { regularTransactions, savingsTransactions in
-                        try user.transactions
+                        user.$transactions
                             .query(on: conn)
-                            .filter(\.source != .externalRegularOutbound)
-                            .filter(\.source != .externalRegularInbound)
-                            .filter(\.source != .externalSavings)
-                            .filter(\.source != .stripeFunding)
-                            .filter(\.source != .directDebit)
-                            .filter(\.narrative != Constants.internalTransferGoalNarrative)
-                            .filter(\.narrative != Constants.internalTransferNarrative)
-                            .filter(\.created >= from)
-                            .filter(\.created < to)
+                            .filter(\.$source != .externalRegularOutbound)
+                            .filter(\.$source != .externalRegularInbound)
+                            .filter(\.$source != .externalSavings)
+                            .filter(\.$source != .stripeFunding)
+                            .filter(\.$source != .directDebit)
+                            .filter(\.$narrative != Constants.internalTransferGoalNarrative)
+                            .filter(\.$narrative != Constants.internalTransferNarrative)
+                            .filter(\.$created >= from)
+                            .filter(\.$created < to)
                             .all()
                             .map { $0.filter(regularTransactions: regularTransactions) }
                             .map { $0.filterGoalTransactions() }
@@ -68,59 +70,58 @@ final class SpendingBusinessLogic {
                                                                           balance: balance,
                                                                           savings: savings,
                                                                           userID: id)
-                                return endOfMonthSummary.save(on: conn).transform(to: ())
+                                return endOfMonthSummary.save(on: conn)
                             }
                     }
             }
     }
 
-    func calculateAllowance(for user: User, on req: Request) throws -> EventLoopFuture<Double> {
-        let spendingLimitFuture = try calculateSpendingLimit(for: user, on: req)
-        let spendingThisWeekFuture = try self.calculateSpendingThisWeek(for: user, on: req)
+    func calculateAllowance(for user: User, on req: Request) -> EventLoopFuture<Double> {
+        let spendingLimitFuture = calculateSpendingLimit(for: user, on: req.db)
+        let spendingThisWeekFuture = calculateSpendingThisWeek(for: user, on: req.db)
 
         return [spendingLimitFuture,
                 spendingThisWeekFuture]
-            .flatten(on: req)
+            .flatten(on: req.eventLoop)
             .flatMap { results in
                 let spendingLimit = results[0]
                 let spendingThisWeek = results[1]
                 let remainingTravel = self.calculateRemainingTravelSpendingThisWeek(for: user)
 
-                return try self.calculateCarryOverFromPreviousWeeks(for: user,
-                                                                    limit: spendingLimit,
-                                                                    on: req)
-                    .map { carryOver -> Double in
+                return self.calculateCarryOverFromPreviousWeeks(for: user,
+                                                                limit: spendingLimit,
+                                                                on: req.db)
+                    .map { carryOver in
                         let weeklyLimit = self.calculateWeeklyLimit(for: user,
                                                                     limit: spendingLimit,
                                                                     carryOver: carryOver)
                         let remainingAllowance = weeklyLimit + spendingThisWeek + remainingTravel
 
-                        let logger = try req.make(Logger.self)
-                        logger.info("Allowance")
-                        logger.info("Limit: \(spendingLimit)")
-                        logger.info("This week: \(spendingThisWeek)")
-                        logger.info("Travel: \(remainingTravel)")
-                        logger.info("Carry over: \(carryOver)")
-                        logger.info("Weekly limit: \(weeklyLimit)")
-                        logger.info("Remaining allowance: \(remainingAllowance)")
+                        req.logger.info("Allowance")
+                        req.logger.info("Limit: \(spendingLimit)")
+                        req.logger.info("This week: \(spendingThisWeek)")
+                        req.logger.info("Travel: \(remainingTravel)")
+                        req.logger.info("Carry over: \(carryOver)")
+                        req.logger.info("Weekly limit: \(weeklyLimit)")
+                        req.logger.info("Remaining allowance: \(remainingAllowance)")
 
                         return remainingAllowance
                     }
             }
     }
 
-    func calculateCurrentMonthSummary(for user: User, on req: Request) throws -> EventLoopFuture<CurrentMonthSummary> {
+    func calculateCurrentMonthSummary(for user: User, on req: Request) -> EventLoopFuture<CurrentMonthSummary> {
         let now = Date()
         let nextPayday = now.startOfDay.next(day: user.payday, direction: .forward)
 
-        let spendingLimitFuture = try calculateSpendingLimit(for: user, on: req)
-        let spendingThisMonthFuture = try calculateSpendingThisMonth(for: user, on: req)
-        let spendingTotalFuture = try calculateSpendingTotalThisMonth(for: user, on: req)
+        let spendingLimitFuture = calculateSpendingLimit(for: user, on: req.db)
+        let spendingThisMonthFuture = calculateSpendingThisMonth(for: user, on: req.db)
+        let spendingTotalFuture = calculateSpendingTotalThisMonth(for: user, on: req.db)
 
         return [spendingLimitFuture,
                 spendingThisMonthFuture,
                 spendingTotalFuture]
-            .flatten(on: req)
+            .flatten(on: req.eventLoop)
             .map { results in
                 let spendingLimit = results[0]
                 let spendingThisMonth = results[1]
@@ -133,16 +134,15 @@ final class SpendingBusinessLogic {
                 let remainingDays = Double(nextPayday.numberOfDays(from: now.startOfDay.add(day: 1)))
                 let forecast = spendingLimit + spendingThisMonth + dailySpendingAverage * remainingDays
 
-                let logger = try req.make(Logger.self)
-                logger.info("Monthly allowance")
-                logger.info("Limit: \(spendingLimit)")
-                logger.info("This month: \(spendingThisMonth)")
-                logger.info("Travel: \(remainingTravel)")
-                logger.info("Remaining allowance: \(allowance)")
+                req.logger.info("Monthly allowance")
+                req.logger.info("Limit: \(spendingLimit)")
+                req.logger.info("This month: \(spendingThisMonth)")
+                req.logger.info("Travel: \(remainingTravel)")
+                req.logger.info("Remaining allowance: \(allowance)")
 
-                logger.info("Monthly forecast")
-                logger.info("Daily spending: \(dailySpendingAverage)")
-                logger.info("Forecast: \(forecast)")
+                req.logger.info("Monthly forecast")
+                req.logger.info("Daily spending: \(dailySpendingAverage)")
+                req.logger.info("Forecast: \(forecast)")
 
                 let currentmonthSummary = CurrentMonthSummary(allowance: allowance,
                                                               forecast: forecast,
@@ -151,14 +151,14 @@ final class SpendingBusinessLogic {
             }
     }
 
-    func updateDailySpendingAverage(user: User, on req: Request) throws -> EventLoopFuture<Void> {
-        try calculateDailySpendingAverage(for: user, on: req)
+    func updateDailySpendingAverage(user: User, on req: Database) -> EventLoopFuture<Void> {
+        calculateDailySpendingAverage(for: user, on: req)
             .flatMap { dailySpending in
-                try self.calculateDailyTravelSpending(for: user, on: req).map { (dailySpending, $0) }
+                self.calculateDailyTravelSpending(for: user, on: req).map { (dailySpending, $0) }
             }.flatMap { dailySpending, travelSpending in
                 user.dailySpendingAverage = dailySpending
                 user.dailyTravelSpendingAverage = travelSpending
-                return user.save(on: req).map { _ in }
+                return user.save(on: req)
             }
     }
 }
@@ -189,40 +189,40 @@ private extension SpendingBusinessLogic {
         return newWeeklyLimit
     }
 
-    func calculateSpendingThisWeek(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<Double> {
+    func calculateSpendingThisWeek(for user: User, on conn: Database) -> EventLoopFuture<Double> {
         let now = Date().startOfDay
         let previousPayday = now.next(day: user.payday, direction: .backward)
         let startOfWeek = max(previousPayday, now.startOfWeek)
 
-        return try calculateSpending(for: user, from: startOfWeek, withTravel: false, on: conn)
+        return calculateSpending(for: user, from: startOfWeek, withTravel: false, on: conn)
     }
 
-    func calculateSpendingThisMonth(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<Double> {
+    func calculateSpendingThisMonth(for user: User, on conn: Database) -> EventLoopFuture<Double> {
         let from = Date().startOfDay.next(day: user.payday, direction: .backward)
-        return try calculateSpending(for: user, from: from, withTravel: true, on: conn)
+        return calculateSpending(for: user, from: from, withTravel: true, on: conn)
     }
 
     func calculateSpending(for user: User,
                            from: Date,
                            withTravel: Bool,
-                           on conn: DatabaseConnectable) throws -> EventLoopFuture<Double> {
+                           on conn: Database) -> EventLoopFuture<Double> {
         let now = Date()
 
-        return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+        return transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
             .flatMap { regularTransactions in
-                try user.transactions
+                user.$transactions
                     .query(on: conn)
-                    .filter(\.source != .externalRegularOutbound)
-                    .filter(\.source != .externalRegularInbound)
-                    .filter(\.source != .externalSavings)
-                    .filter(\.source != .stripeFunding)
-                    .filter(\.source != .directDebit)
-                    .filter(\.narrative != Constants.internalTransferGoalNarrative)
-                    .filter(\.narrative != Constants.internalTransferNarrative)
-                    .filter(\.created >= from)
-                    .filter(\.created <= now)
-                    .filter(\.amount > -user.largeTransaction)
-                    .filter(\.amount < user.largeTransaction)
+                    .filter(\.$source != .externalRegularOutbound)
+                    .filter(\.$source != .externalRegularInbound)
+                    .filter(\.$source != .externalSavings)
+                    .filter(\.$source != .stripeFunding)
+                    .filter(\.$source != .directDebit)
+                    .filter(\.$narrative != Constants.internalTransferGoalNarrative)
+                    .filter(\.$narrative != Constants.internalTransferNarrative)
+                    .filter(\.$created >= from)
+                    .filter(\.$created <= now)
+                    .filter(\.$amount > -user.largeTransaction)
+                    .filter(\.$amount < user.largeTransaction)
                     .all()
                     .map { $0.filter(regularTransactions: regularTransactions) }
                     .map { $0.filterGoalTransactions() }
@@ -240,21 +240,21 @@ private extension SpendingBusinessLogic {
             }
     }
 
-    func calculateSpendingTotalThisMonth(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<Double> {
+    func calculateSpendingTotalThisMonth(for user: User, on conn: Database) -> EventLoopFuture<Double> {
         let from = Date().startOfDay.next(day: user.payday, direction: .backward)
 
-        return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+        return transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
             .flatMap { regularTransactions in
-                try user.transactions
+                user.$transactions
                     .query(on: conn)
-                    .filter(\.source != .externalRegularOutbound)
-                    .filter(\.source != .externalRegularInbound)
-                    .filter(\.source != .externalSavings)
-                    .filter(\.source != .stripeFunding)
-                    .filter(\.source != .directDebit)
-                    .filter(\.narrative != Constants.internalTransferGoalNarrative)
-                    .filter(\.narrative != Constants.internalTransferNarrative)
-                    .filter(\.created >= from)
+                    .filter(\.$source != .externalRegularOutbound)
+                    .filter(\.$source != .externalRegularInbound)
+                    .filter(\.$source != .externalSavings)
+                    .filter(\.$source != .stripeFunding)
+                    .filter(\.$source != .directDebit)
+                    .filter(\.$narrative != Constants.internalTransferGoalNarrative)
+                    .filter(\.$narrative != Constants.internalTransferNarrative)
+                    .filter(\.$created >= from)
                     .all()
                     .map { $0.filter(regularTransactions: regularTransactions) }
                     .map { $0.filterGoalTransactions() }
@@ -262,36 +262,37 @@ private extension SpendingBusinessLogic {
             }
     }
 
-    func calculateSpendingLimit(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<Double> {
+    func calculateSpendingLimit(for user: User, on conn: Database) -> EventLoopFuture<Double> {
         let now = Date()
         let from = now.startOfDay.next(day: user.payday, direction: .backward)
         let to = now
 
-        return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+        return transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
             .flatMap { regularTransactions in
-                try user.transactions
+                user.$transactions
                     .query(on: conn)
-                    .filter(\.source != .externalRegularOutbound)
-                    .filter(\.source != .externalRegularInbound)
-                    .filter(\.source != .externalSavings)
-                    .filter(\.source != .stripeFunding)
-                    .filter(\.source != .directDebit)
-                    .filter(\.narrative != Constants.internalTransferGoalNarrative)
-                    .filter(\.narrative != Constants.internalTransferNarrative)
-                    .filter(\.created >= from)
-                    .filter(\.created < to)
+                    .filter(\.$source != .externalRegularOutbound)
+                    .filter(\.$source != .externalRegularInbound)
+                    .filter(\.$source != .externalSavings)
+                    .filter(\.$source != .stripeFunding)
+                    .filter(\.$source != .directDebit)
+                    .filter(\.$narrative != Constants.internalTransferGoalNarrative)
+                    .filter(\.$narrative != Constants.internalTransferNarrative)
+                    .filter(\.$created >= from)
+                    .filter(\.$created < to)
                     .group(.or) { group in
-                        group.filter(\.amount <= -user.largeTransaction)
-                            .filter(\.amount >= user.largeTransaction)
+                        group.filter(\.$amount <= -user.largeTransaction)
+                            .filter(\.$amount >= user.largeTransaction)
                     }
                     .all()
                     .map { $0.filter(regularTransactions: regularTransactions) }
                     .map { $0.filterGoalTransactions() }
                     .flatMap { largeTransactions in
-                        try user.endOfMonthSummaries
+                        user.$endOfMonthSummaries
                             .query(on: conn)
-                            .sort(\.created, .descending)
-                            .first().map { lastBalance in
+                            .sort(\.$created, .descending)
+                            .first()
+                            .map { lastBalance in
                                 var carryOver = 0.0
                                 if let lastBalance = lastBalance?.balance, lastBalance < 0 {
                                     carryOver = lastBalance
@@ -304,30 +305,30 @@ private extension SpendingBusinessLogic {
 
     func calculateCarryOverFromPreviousWeeks(for user: User,
                                              limit: Double,
-                                             on conn: DatabaseConnectable) throws -> EventLoopFuture<Double> {
+                                             on conn: Database) -> EventLoopFuture<Double> {
         let now = Date().startOfDay
         let startOfWeek = now.startOfWeek
         let nextPayday = now.next(day: user.payday, direction: .forward)
         let payday = now.next(day: user.payday, direction: .backward)
-        guard payday < startOfWeek else { return conn.eventLoop.newSucceededFuture(result: 0) }
+        guard payday < startOfWeek else { return conn.eventLoop.makeSucceededFuture(0) }
         let daysSincePayday = startOfWeek.numberOfDays(from: payday)
         let daysInMonth = nextPayday.numberOfDays(from: payday)
 
-        return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+        return transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
             .flatMap { regularTransactions in
-                try user.transactions
+                user.$transactions
                     .query(on: conn)
-                    .filter(\.source != .externalRegularOutbound)
-                    .filter(\.source != .externalRegularInbound)
-                    .filter(\.source != .externalSavings)
-                    .filter(\.source != .stripeFunding)
-                    .filter(\.source != .directDebit)
-                    .filter(\.narrative != Constants.internalTransferGoalNarrative)
-                    .filter(\.narrative != Constants.internalTransferNarrative)
-                    .filter(\.amount > -user.largeTransaction)
-                    .filter(\.amount < user.largeTransaction)
-                    .filter(\.created >= payday)
-                    .filter(\.created < startOfWeek)
+                    .filter(\.$source != .externalRegularOutbound)
+                    .filter(\.$source != .externalRegularInbound)
+                    .filter(\.$source != .externalSavings)
+                    .filter(\.$source != .stripeFunding)
+                    .filter(\.$source != .directDebit)
+                    .filter(\.$narrative != Constants.internalTransferGoalNarrative)
+                    .filter(\.$narrative != Constants.internalTransferNarrative)
+                    .filter(\.$amount > -user.largeTransaction)
+                    .filter(\.$amount < user.largeTransaction)
+                    .filter(\.$created >= payday)
+                    .filter(\.$created < startOfWeek)
                     .all()
                     .map { $0.filter(regularTransactions: regularTransactions) }
                     .map { $0.filterGoalTransactions() }
@@ -342,22 +343,22 @@ private extension SpendingBusinessLogic {
     }
 
     func calculateDailySpendingAverage(for user: User,
-                                       on conn: DatabaseConnectable) throws -> EventLoopFuture<Double> {
+                                       on conn: Database) -> EventLoopFuture<Double> {
         let today = Date().startOfDay
 
-        return try transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
+        return transactionsBusinessLogic.getRegularTransactions(for: user, on: conn)
             .flatMap { regularTransactions in
-                try user.transactions
+                user.$transactions
                     .query(on: conn)
-                    .filter(\.source != .externalRegularOutbound)
-                    .filter(\.source != .externalRegularInbound)
-                    .filter(\.source != .externalSavings)
-                    .filter(\.source != .stripeFunding)
-                    .filter(\.source != .directDebit)
-                    .filter(\.narrative != Constants.internalTransferGoalNarrative)
-                    .filter(\.narrative != Constants.internalTransferNarrative)
-                    .filter(\.created >= user.startDate)
-                    .filter(\.created < today)
+                    .filter(\.$source != .externalRegularOutbound)
+                    .filter(\.$source != .externalRegularInbound)
+                    .filter(\.$source != .externalSavings)
+                    .filter(\.$source != .stripeFunding)
+                    .filter(\.$source != .directDebit)
+                    .filter(\.$narrative != Constants.internalTransferGoalNarrative)
+                    .filter(\.$narrative != Constants.internalTransferNarrative)
+                    .filter(\.$created >= user.startDate)
+                    .filter(\.$created < today)
                     .all()
                     .map { $0.filter(regularTransactions: regularTransactions) }
                     .map { $0.filterGoalTransactions() }
@@ -389,14 +390,14 @@ private extension SpendingBusinessLogic {
         return user.dailyTravelSpendingAverage * remainingDays
     }
 
-    func calculateDailyTravelSpending(for user: User, on conn: DatabaseConnectable) throws -> EventLoopFuture<Double> {
+    func calculateDailyTravelSpending(for user: User, on conn: Database) -> EventLoopFuture<Double> {
         let today = Date().startOfDay
 
-        return try user.transactions
+        return user.$transactions
             .query(on: conn)
-            .filter(\.narrative == Constants.travelNarrative)
-            .filter(\.created < today)
-            .sort(\.created, .ascending)
+            .filter(\.$narrative == Constants.travelNarrative)
+            .filter(\.$created < today)
+            .sort(\.$created, .ascending)
             .all()
             .map { transactions in
                 let firstDate = transactions.first?.created.startOfDay ?? today

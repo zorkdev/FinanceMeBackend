@@ -1,19 +1,16 @@
-import Vapor
-import FluentPostgreSQL
+import FluentPostgresDriver
 
-struct JSONB: Codable, Equatable, ReflectionDecodable, PostgreSQLDataConvertible {
+struct JSONB: Codable {
     let data: Data
+}
 
-    static func reflectDecoded() throws -> (JSONB, JSONB) {
-        (JSONB(data: Data([1])), JSONB(data: Data([2])))
-    }
+extension JSONB: PostgresDataConvertible {
+    static var postgresDataType: PostgresDataType { .jsonb }
 
-    static func convertFromPostgreSQLData(_ data: PostgreSQLData) throws -> JSONB {
-        guard let binary = data.binary else { throw PostgreSQLError(identifier: "Null data", reason: "") }
-        return JSONB(data: binary)
-    }
+    var postgresData: PostgresData? { .init(jsonb: data) }
 
-    func convertToPostgreSQLData() throws -> PostgreSQLData {
-        PostgreSQLData(.jsonb, binary: [0x01] + data)
+    init?(postgresData: PostgresData) {
+        guard let data = postgresData.jsonb else { return nil }
+        self.data = data
     }
 }

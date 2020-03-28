@@ -1,113 +1,123 @@
 import Vapor
-import FluentPostgreSQL
+import Fluent
 
 final class TransactionController {
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
     private let pushNotificationController = PushNotificationController()
 
     func index(_ req: Request) throws -> EventLoopFuture<[TransactionResponse]> {
-        let user = try req.requireAuthenticated(User.self)
-        return try transactionsBusinessLogic.getExternalTransactions(for: user, on: req)
+        let user = try req.auth.require(User.self)
+        return transactionsBusinessLogic.getExternalTransactions(for: user, on: req.db)
             .map { $0.map { $0.response } }
     }
 
     func show(_ req: Request) throws -> EventLoopFuture<TransactionResponse> {
-        let user = try req.requireAuthenticated(User.self)
-
-        return try req.parameters.next(Transaction.self)
-            .flatMap { transaction in
-                guard transaction.userID == user.id else { throw Abort(.notFound) }
-                return req.eventLoop.newSucceededFuture(result: transaction.response)
+        let user = try req.auth.require(User.self)
+        guard let transactionId = req.parameters.get(Routes.Parameters.transaction.rawValue, as: UUID.self) else {
+            return req.eventLoop.makeFailedFuture(Abort(.notFound))
+        }
+        return Transaction.find(transactionId, on: req.db)
+            .unwrap(or: Abort(.notFound))
+            .flatMapThrowing {
+                guard $0.$user.id == user.id else { throw Abort(.notFound) }
+                return $0.response
             }
     }
 
     func store(_ req: Request) throws -> EventLoopFuture<TransactionResponse> {
-        let user = try req.requireAuthenticated(User.self)
+        let user = try req.auth.require(User.self)
+        let transactionResponse = try req.content.decode(TransactionResponse.self)
         guard let userID = user.id else { throw Abort(.notFound) }
 
-        return try req.content.decode(TransactionResponse.self)
-            .flatMap { transactionResponse in
-                let transaction = Transaction(amount: transactionResponse.amount,
-                                              direction: transactionResponse.direction,
-                                              created: transactionResponse.created,
-                                              narrative: transactionResponse.narrative,
-                                              source: transactionResponse.source,
-                                              isArchived: false,
-                                              internalNarrative: nil,
-                                              internalAmount: nil,
-                                              userID: userID)
+        let transaction = Transaction(amount: transactionResponse.amount,
+                                      direction: transactionResponse.direction,
+                                      created: transactionResponse.created,
+                                      narrative: transactionResponse.narrative,
+                                      source: transactionResponse.source,
+                                      isArchived: false,
+                                      internalNarrative: nil,
+                                      internalAmount: nil,
+                                      userID: userID)
 
-                return transaction.save(on: req)
-                    .flatMap { transaction in
-                        try self.pushNotificationController.sendNotification(user: user, on: req)
-                            .map { _ in transaction.response }
-                    }
-            }
+        return transaction.save(on: req.db)
+            .flatMap { self.pushNotificationController.sendNotification(user: user, on: req) }
+            .transform(to: transaction.response)
     }
 
     func replace(_ req: Request) throws -> EventLoopFuture<TransactionResponse> {
-        let user = try req.requireAuthenticated(User.self)
-        guard let userID = user.id else { throw Abort(.notFound) }
+        let user = try req.auth.require(User.self)
+        let transactionResponse = try req.content.decode(TransactionResponse.self)
 
-        return try req.parameters.next(Transaction.self)
-            .flatMap { transaction -> EventLoopFuture<TransactionResponse> in
-                guard transaction.userID == userID else { throw Abort(.notFound) }
-                return try req.content.decode(TransactionResponse.self)
-                    .flatMap { transactionResponse in
-                        transaction.amount = transactionResponse.amount
-                        transaction.direction = transactionResponse.direction
-                        transaction.created = transactionResponse.created
-                        transaction.narrative = transactionResponse.narrative
-                        transaction.source = transactionResponse.source
-                        return transaction.save(on: req).flatMap { _ in
-                            try self.pushNotificationController.sendNotification(user: user, on: req)
-                        }.map { _ in transaction.response }
-                    }
+        guard let transactionId = req.parameters.get(Routes.Parameters.transaction.rawValue, as: UUID.self),
+            let userID = user.id else {
+                return req.eventLoop.makeFailedFuture(Abort(.notFound))
+        }
+
+        return Transaction.find(transactionId, on: req.db)
+            .unwrap(or: Abort(.notFound))
+            .flatMapThrowing {
+                guard $0.$user.id == userID else { throw Abort(.notFound) }
+                return $0
+            }.flatMap { (transaction: Transaction) -> EventLoopFuture<TransactionResponse> in
+                transaction.amount = transactionResponse.amount
+                transaction.direction = transactionResponse.direction
+                transaction.created = transactionResponse.created
+                transaction.narrative = transactionResponse.narrative
+                transaction.source = transactionResponse.source
+                return transaction.save(on: req.db)
+                    .flatMap { self.pushNotificationController.sendNotification(user: user, on: req) }
+                    .transform(to: transaction.response)
             }
     }
 
     func destroy(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
-        let user = try req.requireAuthenticated(User.self)
-        guard let userID = user.id else { throw Abort(.notFound) }
+        let user = try req.auth.require(User.self)
 
-        return try req.parameters.next(Transaction.self)
-            .flatMap { transaction -> EventLoopFuture<Void> in
-                guard transaction.userID == userID else { throw Abort(.notFound) }
-                return transaction.delete(on: req)
-            }.flatMap { _ in
-                try self.pushNotificationController.sendNotification(user: user, on: req)
+        guard let transactionId = req.parameters.get(Routes.Parameters.transaction.rawValue, as: UUID.self),
+            let userID = user.id else {
+                return req.eventLoop.makeFailedFuture(Abort(.notFound))
+        }
+
+        return Transaction.find(transactionId, on: req.db)
+            .unwrap(or: Abort(.notFound))
+            .flatMapThrowing {
+                guard $0.$user.id == userID else { throw Abort(.notFound) }
+                return $0
+            }.flatMap { (transaction: Transaction) -> EventLoopFuture<Void> in
+                transaction.delete(on: req.db)
+            }.flatMap {
+                self.pushNotificationController.sendNotification(user: user, on: req)
             }.transform(to: .ok)
     }
 
     func handlePayload(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
-        _ = try? req.content.decode(TransactionPayload.self)
-            .flatMap { payload -> EventLoopFuture<[Data]> in
-                // swiftlint:disable:next first_where
-                return User
-                    .query(on: req)
-                    .filter(\.customerUid == payload.customerUid)
-                    .first()
-                    .flatMap { user in
-                        guard let user = user else { throw Abort(.notFound) }
-                        return try self.transactionsBusinessLogic.getTransactions(user: user, on: req)
-                            .flatMap { _ in
-                                try self.pushNotificationController.sendNotification(user: user, on: req)
-                            }
-                    }
-            }.catch { try? req.make(Logger.self).error("\($0)") }
+        if let payload = try? req.content.decode(TransactionPayload.self) {
+            _ = User
+                .query(on: req.db)
+                .filter(\.$customerUid == payload.customerUid)
+                .first()
+                .unwrap(or: Abort(.notFound))
+                .flatMap { user in
+                    self.transactionsBusinessLogic.getTransactions(user: user, on: req)
+                        .flatMap { _ in self.pushNotificationController.sendNotification(user: user, on: req) }
+                }.flatMapErrorThrowing { error in
+                    req.logger.error("\(error)")
+                    throw error
+                }
+        }
 
-        return req.eventLoop.newSucceededFuture(result: .ok)
+        return req.eventLoop.makeSucceededFuture(.ok)
     }
 
-    func addPublicRoutes(to router: Router) {
-        router.post(Routes.transactionPayload.rawValue, use: handlePayload)
+    func addPublicRoutes(to router: RoutesBuilder) {
+        router.post(Routes.transactions.path, Routes.transactionPayload.path, use: handlePayload)
     }
 
-    func addRoutes(to router: Router) {
-        router.get(Routes.transactions.rawValue, use: index)
-        router.get(Routes.transactions.rawValue, Transaction.parameter, use: show)
-        router.post(Routes.transactions.rawValue, use: store)
-        router.put(Routes.transactions.rawValue, Transaction.parameter, use: replace)
-        router.delete(Routes.transactions.rawValue, Transaction.parameter, use: destroy)
+    func addRoutes(to router: RoutesBuilder) {
+        router.get(Routes.transactions.path, use: index)
+        router.get(Routes.transactions.path, Routes.Parameters.transaction.path, use: show)
+        router.post(Routes.transactions.path, use: store)
+        router.put(Routes.transactions.path, Routes.Parameters.transaction.path, use: replace)
+        router.delete(Routes.transactions.path, Routes.Parameters.transaction.path, use: destroy)
     }
 }

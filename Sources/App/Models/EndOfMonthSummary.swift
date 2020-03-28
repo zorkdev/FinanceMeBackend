@@ -1,5 +1,5 @@
 import Vapor
-import FluentPostgreSQL
+import Fluent
 
 struct EndOfMonthSummariesResponse: Content {
     let currentMonthSummary: CurrentMonthSummary
@@ -19,27 +19,28 @@ struct EndOfMonthSummaryResponse: Content {
     let savings: Double
 }
 
-final class EndOfMonthSummary: PostgreSQLUUIDModel {
-    private enum CodingKeys: String, CodingKey {
-        case id
-        case created
-        case balance
-        case savings
-        case userID = "user_id"
-    }
+extension FieldKey {
+    static var balance: Self { "balance" }
+    static var savings: Self { "savings" }
+}
 
-    static let entity = "end_of_month_summarys"
+final class EndOfMonthSummary: Model, Content {
+    static let schema = "end_of_month_summarys"
 
+    @ID()
     var id: UUID?
-    let created: Date
-    let balance: Double
-    let savings: Double
 
-    var userID: User.ID
+    @Field(key: .created)
+    var created: Date
 
-    var user: Parent<EndOfMonthSummary, User> {
-        parent(\.userID)
-    }
+    @Field(key: .balance)
+    var balance: Double
+
+    @Field(key: .savings)
+    var savings: Double
+
+    @Parent(key: .userID)
+    var user: User
 
     var response: EndOfMonthSummaryResponse {
         EndOfMonthSummaryResponse(id: id,
@@ -48,19 +49,33 @@ final class EndOfMonthSummary: PostgreSQLUUIDModel {
                                   savings: savings)
     }
 
+    init() {}
+
     init(id: UUID? = nil,
          created: Date,
          balance: Double,
          savings: Double,
-         userID: User.ID) {
+         userID: User.IDValue) {
         self.id = id
         self.created = created
         self.balance = balance
         self.savings = savings
-        self.userID = userID
+        self.$user.id = userID
     }
 }
 
-extension EndOfMonthSummary: Migration {}
-extension EndOfMonthSummary: Content {}
-extension EndOfMonthSummary: Parameter {}
+struct CreateEndOfMonthSummary: Migration {
+    func prepare(on database: Database) -> EventLoopFuture<Void> {
+        database.schema(EndOfMonthSummary.schema)
+            .id()
+            .field(.created, .datetime, .required)
+            .field(.balance, .double, .required)
+            .field(.savings, .double, .required)
+            .foreignKey(.userID, references: User.schema, .id)
+            .create()
+    }
+
+    func revert(on database: Database) -> EventLoopFuture<Void> {
+        database.schema(EndOfMonthSummary.schema).delete()
+    }
+}

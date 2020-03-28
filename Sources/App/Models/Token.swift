@@ -1,59 +1,54 @@
 import Vapor
-import FluentPostgreSQL
-import Authentication
+import Fluent
 
-final class Token: PostgreSQLUUIDModel {
-    private enum CodingKeys: String, CodingKey {
-        case id
-        case token
-        case userID = "user_id"
-    }
+extension FieldKey {
+    static var token: Self { "token" }
+}
 
-    static let entity = "tokens"
-
+final class Token: Model, Content {
     private enum Constants {
         static let tokenBytes = 48
     }
 
+    static let schema = "tokens"
+
+    @ID()
     var id: UUID?
+
+    @Field(key: .token)
     var token: String
 
-    var userID: User.ID
+    @Parent(key: .userID)
+    var user: User
 
-    var user: Parent<Token, User> {
-        parent(\.userID)
-    }
+    init() {}
 
     init(id: UUID? = nil,
          token: String,
-         userID: User.ID) {
+         userID: User.IDValue) {
         self.id = id
         self.token = token
-        self.userID = userID
+        self.$user.id = userID
     }
 }
 
-extension Token: Authentication.Token {
-    typealias UserType = User
+extension Token: ModelTokenAuthenticatable {
+    static let valueKey = \Token.$token
+    static let userKey = \Token.$user
 
-    static var userIDKey: WritableKeyPath<Token, User.ID> {
-        \.userID
-    }
-
-    static var tokenKey: WritableKeyPath<Token, String> {
-        \.token
-    }
-
-    static func generate(for user: User) throws -> Token {
-        let random = try CryptoRandom().generateData(count: Constants.tokenBytes)
-        guard let string = String(bytes: random.base64EncodedData(), encoding: .ascii),
-            let userID = user.id else {
-            throw Abort(.internalServerError)
-        }
-        return Token(token: string, userID: userID)
-    }
+    var isValid: Bool { true }
 }
 
-extension Token: Migration {}
-extension Token: Content {}
-extension Token: Parameter {}
+struct CreateToken: Migration {
+    func prepare(on database: Database) -> EventLoopFuture<Void> {
+        database.schema(Token.schema)
+            .id()
+            .field(.token, .string, .required)
+            .foreignKey(.userID, references: User.schema, .id)
+            .create()
+    }
+
+    func revert(on database: Database) -> EventLoopFuture<Void> {
+        database.schema(Token.schema).delete()
+    }
+}

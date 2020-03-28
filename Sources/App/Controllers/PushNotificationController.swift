@@ -1,69 +1,40 @@
 import Vapor
 
 final class PushNotificationController {
-    var certPath: String {
-        let directory = DirectoryConfig.detect()
-        let workingDirectory = directory.workDir
-        return URL(fileURLWithPath: workingDirectory)
-            .appendingPathComponent("apns.pem", isDirectory: false)
-            .path
-    }
-
     private let spendingBusinessLogic = SpendingBusinessLogic()
 
     func store(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
-        let user = try req.requireAuthenticated(User.self)
+        let user = try req.auth.require(User.self)
+        let deviceTokenRequest = try req.content.decode(DeviceTokenRequest.self)
 
-        return try req.content.decode(DeviceTokenRequest.self)
-            .flatMap { deviceTokenRequest in
-                let token = deviceTokenRequest.deviceToken
-                guard user.deviceTokens.contains(token) == false else {
-                    return req.eventLoop.newSucceededFuture(result: .ok)
-                }
-                user.deviceTokens.append(token)
-                return user.save(on: req).transform(to: .ok)
-            }
-    }
-
-    func sendNotification(user: User, on req: Request) throws -> EventLoopFuture<[Data]> {
-        try spendingBusinessLogic.calculateAllowance(for: user, on: req)
-            .flatMap { try self.sendNotification(user: user, allowance: $0, on: req) }
-    }
-
-    func sendNotification(user: User, allowance: Double, on req: Request) throws -> EventLoopFuture<[Data]> {
-        try user.deviceTokens
-            .map {
-                try self.sendNotification(deviceToken: $0,
-                                          allowance: allowance,
-                                          on: req)
-            }.flatten(on: req)
-    }
-
-    func sendNotification(deviceToken: String, allowance: Double, on req: Request) throws -> EventLoopFuture<Data> {
-        let shell = try Shell.makeService(for: req)
-        let pw = ProcessInfo.processInfo.environment["APNS_CERT_PW"]!
-
-        let payload = "{\"aps\":{\"content-available\":1},\"allowance\":\(allowance)}"
-
-        let arguments = [
-            "-d", "\(payload)",
-            "-H", "Content-Type: application/json",
-            "-H", "apns-topic:com.zorkdev.FinanceMe.watchkitapp.watchkitextension.complication",
-            "-H", "apns-expiration: 1",
-            "-H", "apns-priority: 10",
-            "-H", "apns-push-type: complication",
-            "https://api.push.apple.com/3/device/\(deviceToken)",
-            "-E", "\(certPath):\(pw)",
-            "--http2-prior-knowledge"
-        ]
-
-        return try shell.execute(commandName: "curl", arguments: arguments).map { response in
-            try req.make(Logger.self).info(String(data: response, encoding: .utf8) ?? "Empty body")
-            return response
+        let token = deviceTokenRequest.deviceToken
+        guard user.deviceTokens.contains(token) == false else {
+            return req.eventLoop.makeSucceededFuture(.ok)
         }
+        user.deviceTokens.append(token)
+        return user.save(on: req.db).transform(to: .ok)
     }
 
-    func addRoutes(to router: Router) {
-        router.post(Routes.deviceToken.rawValue, use: store)
+    func sendNotification(user: User, on req: Request) -> EventLoopFuture<[Data]> {
+        spendingBusinessLogic.calculateAllowance(for: user, on: req)
+            .flatMap { self.sendNotification(user: user, allowance: $0, on: req) }
+    }
+
+    func sendNotification(user: User, allowance: Double, on req: Request) -> EventLoopFuture<[Data]> {
+        user.deviceTokens
+            .map {
+                self.sendNotification(deviceToken: $0,
+                                      allowance: allowance,
+                                      on: req)
+        }.flatten(on: req.eventLoop)
+    }
+
+    func sendNotification(deviceToken: String, allowance: Double, on req: Request) -> EventLoopFuture<Data> {
+        //let payload = "{\"aps\":{\"content-available\":1},\"allowance\":\(allowance)}"
+        req.eventLoop.makeSucceededFuture(Data())
+    }
+
+    func addRoutes(to router: RoutesBuilder) {
+        router.post(Routes.deviceToken.path, use: store)
     }
 }

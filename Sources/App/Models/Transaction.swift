@@ -1,5 +1,5 @@
 import Vapor
-import FluentPostgreSQL
+import Fluent
 
 struct TransactionResponse: Content {
     let id: UUID?
@@ -10,21 +10,13 @@ struct TransactionResponse: Content {
     let source: TransactionSource
 }
 
-enum TransactionDirection: String, Content, ReflectionDecodable {
-    static func reflectDecoded() throws -> (TransactionDirection, TransactionDirection) {
-        (.none, .outbound)
-    }
-
+enum TransactionDirection: String, Codable {
     case none = "NONE"
     case outbound = "OUTBOUND"
     case inbound = "INBOUND"
 }
 
-enum TransactionSource: String, Equatable, Content, ReflectionDecodable {
-    static func reflectDecoded() throws -> (TransactionSource, TransactionSource) {
-        (.directCredit, .directDebit)
-    }
-
+enum TransactionSource: String, Equatable, Codable {
     case cashDeposit = "CASH_DEPOSIT"
     case cashDepositCharge = "CASH_DEPOSIT_CHARGE"
     case cashWithdrawal = "CASH_WITHDRAWAL"
@@ -85,38 +77,49 @@ enum TransactionSource: String, Equatable, Content, ReflectionDecodable {
     }
 }
 
-final class Transaction: PostgreSQLUUIDModel {
-    private enum CodingKeys: String, CodingKey {
-        case id
-        case amount
-        case direction
-        case created
-        case narrative
-        case source
-        case isArchived = "is_archived"
-        case internalNarrative = "internal_narrative"
-        case internalAmount = "internal_amount"
-        case userID = "user_id"
-    }
+extension FieldKey {
+    static var amount: Self { "amount" }
+    static var direction: Self { "direction" }
+    static var created: Self { "created" }
+    static var narrative: Self { "narrative" }
+    static var source: Self { "source" }
+    static var isArchived: Self { "is_archived" }
+    static var internalNarrative: Self { "internal_narrative" }
+    static var internalAmount: Self { "internal_amount" }
+}
 
-    static let entity = "transactions"
+final class Transaction: Model, Content {
+    static let schema = "transactions"
 
+    @ID()
     var id: UUID?
+
+    @Field(key: .amount)
     var amount: Double
+
+    @Field(key: .direction)
     var direction: TransactionDirection
+
+    @Field(key: .created)
     var created: Date
+
+    @Field(key: .narrative)
     var narrative: String
+
+    @Field(key: .source)
     var source: TransactionSource
 
+    @Field(key: .isArchived)
     var isArchived: Bool
-    let internalNarrative: String?
-    let internalAmount: Double?
 
-    var userID: User.ID
+    @OptionalField(key: .internalNarrative)
+    var internalNarrative: String?
 
-    var user: Parent<Transaction, User> {
-        parent(\.userID)
-    }
+    @OptionalField(key: .internalAmount)
+    var internalAmount: Double?
+
+    @Parent(key: .userID)
+    var user: User
 
     var response: TransactionResponse {
         TransactionResponse(id: id,
@@ -127,6 +130,8 @@ final class Transaction: PostgreSQLUUIDModel {
                             source: source)
     }
 
+    init() {}
+
     init(id: UUID? = nil,
          amount: Double,
          direction: TransactionDirection,
@@ -136,7 +141,7 @@ final class Transaction: PostgreSQLUUIDModel {
          isArchived: Bool,
          internalNarrative: String?,
          internalAmount: Double?,
-         userID: User.ID) {
+         userID: User.IDValue) {
         self.id = id
         self.amount = amount
         self.direction = direction
@@ -146,7 +151,7 @@ final class Transaction: PostgreSQLUUIDModel {
         self.isArchived = isArchived
         self.internalNarrative = internalNarrative
         self.internalAmount = internalAmount
-        self.userID = userID
+        self.$user.id = userID
     }
 
     init?(from: StarlingTransaction) {
@@ -160,10 +165,27 @@ final class Transaction: PostgreSQLUUIDModel {
         self.isArchived = false
         self.internalNarrative = nil
         self.internalAmount = nil
-        self.userID = UUID()
+        self.$user.id = User.IDValue()
     }
 }
 
-extension Transaction: Migration {}
-extension Transaction: Content {}
-extension Transaction: Parameter {}
+struct CreateTransaction: Migration {
+    func prepare(on database: Database) -> EventLoopFuture<Void> {
+        database.schema(Transaction.schema)
+            .id()
+            .field(.amount, .double, .required)
+            .field(.direction, .string, .required)
+            .field(.created, .datetime, .required)
+            .field(.narrative, .string, .required)
+            .field(.source, .string, .required)
+            .field(.isArchived, .bool, .required)
+            .field(.internalNarrative, .string)
+            .field(.internalAmount, .double)
+            .foreignKey(.userID, references: User.schema, .id)
+            .create()
+    }
+
+    func revert(on database: Database) -> EventLoopFuture<Void> {
+        database.schema(Transaction.schema).delete()
+    }
+}

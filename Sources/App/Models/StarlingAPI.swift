@@ -15,8 +15,8 @@ enum StarlingAPI {
         }
     }
 
-    var uri: String {
-        StarlingAPI.baseURL + path
+    var uri: URI {
+        URI(string: StarlingAPI.baseURL + path)
     }
 }
 

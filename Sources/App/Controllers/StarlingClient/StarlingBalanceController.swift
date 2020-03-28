@@ -2,16 +2,18 @@ import Vapor
 
 final class StarlingBalanceController {
     func getBalance(user: User,
-                    on con: Container) throws -> EventLoopFuture<StarlingBalance> {
+                    on req: Request) -> EventLoopFuture<StarlingBalance> {
         guard let token = user.sToken,
-            let accountUid = user.accountUid else { throw Abort(.internalServerError) }
+            let accountUid = user.accountUid else {
+                return req.eventLoop.makeFailedFuture(Abort(.internalServerError))
+        }
 
-        return try StarlingClientController().get(endpoint: .getBalance(accountUid: accountUid),
-                                                  token: token,
-                                                  on: con)
-            .flatMap { try $0.content.decode(StarlingBalance.self) }
-            .catchMap { error in
-                try con.make(Logger.self).error("\(error)")
+        return StarlingClientController().get(endpoint: .getBalance(accountUid: accountUid),
+                                              token: token,
+                                              on: req)
+            .flatMapThrowing { try $0.content.decode(StarlingBalance.self) }
+            .flatMapErrorThrowing { error in
+                req.logger.error("\(error)")
                 throw error
             }
     }

@@ -1,38 +1,42 @@
-import FluentPostgreSQL
 import Vapor
-import Authentication
+import Fluent
+import FluentPostgresDriver
 
-public func configure(_ config: inout Config, _ env: inout Environment, _ services: inout Services) throws {
-    services.register(NIOServerConfig.default(workerCount: 4, supportCompression: true))
-    services.register(DatabaseConnectionPoolConfig(maxConnections: 4))
+extension PostgresConfiguration {
+    public init?(url: URL, tlsConfiguration: TLSConfiguration?) {
+        guard url.scheme?.hasPrefix("postgres") == true,
+            let username = url.user,
+            let password = url.password,
+            let hostname = url.host,
+            let port = url.port else { return nil }
+        self.init(
+            hostname: hostname,
+            port: port,
+            username: username,
+            password: password,
+            database: url.path.split(separator: "/").last.flatMap(String.init),
+            tlsConfiguration: tlsConfiguration
+        )
+    }
+}
 
-    try services.register(FluentPostgreSQLProvider())
-    try services.register(AuthenticationProvider())
+public func configure(_ app: Application) throws {
+    app.http.server.configuration.requestDecompression = .enabled
+    app.http.server.configuration.responseCompression = .enabled
 
-    let router = EngineRouter.default()
-    try routes(router)
-    services.register(router, as: Router.self)
+    let databaseURL = URL(string: Environment.get("DATABASE_URL")!)!
+    let databaseConfig = PostgresConfiguration(url: databaseURL,
+                                               tlsConfiguration: .forClient(certificateVerification: .none))!
+    app.databases.use(.postgres(configuration: databaseConfig), as: .psql)
 
-    var middlewares = MiddlewareConfig()
-    middlewares.use(FileMiddleware.self)
-    middlewares.use(ErrorMiddleware.self)
-    services.register(middlewares)
+    app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+    app.middleware.use(ErrorMiddleware.default(environment: app.environment))
 
-    let databaseURL = Environment.get("DATABASE_URL")!
-    let psqlConfig = PostgreSQLDatabaseConfig(url: databaseURL, transport: .unverifiedTLS)!
-    services.register(psqlConfig)
+    app.migrations.add(CreateTransaction())
+    app.migrations.add(CreateEndOfMonthSummary())
+    app.migrations.add(CreateToken())
+    app.migrations.add(CreateUser())
+    app.migrations.add(CreateMetric())
 
-    var migrations = MigrationConfig()
-    migrations.add(model: Transaction.self, database: .psql)
-    migrations.add(model: EndOfMonthSummary.self, database: .psql)
-    migrations.add(model: Token.self, database: .psql)
-    migrations.add(model: User.self, database: .psql)
-    migrations.add(model: Metric.self, database: .psql)
-    services.register(migrations)
-
-    let apnsCert = Environment.get("APNS_CERT")!.data(using: .utf8)!
-    let directory = DirectoryConfig.detect()
-    let workingDirectory = directory.workDir
-    let saveURL = URL(fileURLWithPath: workingDirectory).appendingPathComponent("apns.pem", isDirectory: false)
-    try apnsCert.write(to: saveURL)
+    try routes(app)
 }

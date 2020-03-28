@@ -1,6 +1,5 @@
 import Vapor
-import FluentPostgreSQL
-import Authentication
+import Fluent
 
 struct UserRequest: Content {
     let name: String
@@ -31,35 +30,76 @@ struct Session: Content {
     let token: String
 }
 
-final class User: PostgreSQLUUIDModel {
-    static let entity = "users"
+extension FieldKey {
+    static var userID: Self { "user_id" }
+    static var name: Self { "name" }
+    static var email: Self { "email" }
+    static var password: Self { "password" }
+    static var payday: Self { "payday" }
+    static var startDate: Self { "startDate" }
+    static var largeTransaction: Self { "largeTransaction" }
+    static var sToken: Self { "sToken" }
+    static var customerUid: Self { "customerUid" }
+    static var deviceTokens: Self { "deviceTokens" }
+    static var dailySpendingAverage: Self { "dailySpendingAverage" }
+    static var dailyTravelSpendingAverage: Self { "dailyTravelSpendingAverage" }
+    static var accountUid: Self { "accountUid" }
+    static var categoryUid: Self { "categoryUid" }
+}
 
+final class User: Model, Content {
+    static let schema = "users"
+
+    @ID()
     var id: UUID?
+
+    @Field(key: .name)
     var name: String
+
+    @Field(key: .email)
     var email: String
+
+    @Field(key: .password)
     var password: String
+
+    @Field(key: .payday)
     var payday: Int
+
+    @Field(key: .startDate)
     var startDate: Date
+
+    @Field(key: .largeTransaction)
     var largeTransaction: Double
+
+    @OptionalField(key: .sToken)
     var sToken: String?
+
+    @OptionalField(key: .customerUid)
     var customerUid: String?
+
+    @Field(key: .deviceTokens)
     var deviceTokens: [String]
+
+    @Field(key: .dailySpendingAverage)
     var dailySpendingAverage: Double
+
+    @Field(key: .dailyTravelSpendingAverage)
     var dailyTravelSpendingAverage: Double
+
+    @OptionalField(key: .accountUid)
     var accountUid: UUID?
+
+    @OptionalField(key: .categoryUid)
     var categoryUid: UUID?
 
-    var token: Children<User, Token> {
-        children(\.userID)
-    }
+    @Children(for: \.$user)
+    var tokens: [Token]
 
-    var transactions: Children<User, Transaction> {
-        children(\.userID)
-    }
+    @Children(for: \.$user)
+    var transactions: [Transaction]
 
-    var endOfMonthSummaries: Children<User, EndOfMonthSummary> {
-        children(\.userID)
-    }
+    @Children(for: \.$user)
+    var endOfMonthSummaries: [EndOfMonthSummary]
 
     var response: UserResponse {
         UserResponse(id: id,
@@ -70,6 +110,8 @@ final class User: PostgreSQLUUIDModel {
                      allowance: 0,
                      balance: 0)
     }
+
+    init() {}
 
     init(id: UUID? = nil,
          name: String,
@@ -98,20 +140,41 @@ final class User: PostgreSQLUUIDModel {
     }
 }
 
-extension User: TokenAuthenticatable {
-    typealias TokenType = Token
-}
+extension User: ModelAuthenticatable {
+    static let usernameKey = \User.$email
+    static let passwordHashKey = \User.$password
 
-extension User: PasswordAuthenticatable {
-    static var usernameKey: WritableKeyPath<User, String> {
-        \.email
-    }
-
-    static var passwordKey: WritableKeyPath<User, String> {
-        \.password
+    func verify(password: String) throws -> Bool {
+        try Bcrypt.verify(password, created: self.password)
     }
 }
 
-extension User: Migration {}
-extension User: Content {}
-extension User: Parameter {}
+extension User {
+    func generateToken() throws -> Token {
+        try .init(token: [UInt8].random(count: 48).base64,
+                  userID: requireID())
+    }
+}
+
+struct CreateUser: Migration {
+    func prepare(on database: Database) -> EventLoopFuture<Void> {
+        database.schema(User.schema)
+            .id()
+            .field(.name, .string, .required)
+            .field(.email, .string, .required)
+            .field(.password, .string, .required)
+            .field(.payday, .int, .required)
+            .field(.startDate, .datetime, .required)
+            .field(.largeTransaction, .double, .required)
+            .field(.sToken, .string)
+            .field(.customerUid, .string)
+            .field(.deviceTokens, .array(of: .string), .required)
+            .field(.dailySpendingAverage, .double, .required)
+            .field(.dailyTravelSpendingAverage, .double, .required)
+            .create()
+    }
+
+    func revert(on database: Database) -> EventLoopFuture<Void> {
+        database.schema(User.schema).delete()
+    }
+}

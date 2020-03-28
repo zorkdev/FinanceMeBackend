@@ -5,25 +5,26 @@ final class ReconciliationController {
     private let transactionsBusinessLogic = TransactionsBusinessLogic()
     private let pushNotificationController = PushNotificationController()
 
-    func store(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
+    func store(_ req: Request) -> EventLoopFuture<HTTPStatus> {
         _ = User
-            .query(on: req)
+            .query(on: req.db)
             .all()
             .flatMap { users in
-                try users.map { user in
-                    try self.spendingBusinessLogic.updateDailySpendingAverage(user: user, on: req)
-                        .flatMap { _ in try self.transactionsBusinessLogic.updateTransactions(user: user, on: req) }
-                        .flatMap { _ in try self.spendingBusinessLogic.calculateEndOfMonthBalance(for: user, on: req) }
-                        .flatMap { _ in
-                            try self.pushNotificationController.sendNotification(user: user, on: req)
-                        }
-                }.flatten(on: req)
-            }.catch { try? req.make(Logger.self).error("\($0)") }
+                users.map { user in
+                    self.spendingBusinessLogic.updateDailySpendingAverage(user: user, on: req.db)
+                        .flatMap { self.transactionsBusinessLogic.updateTransactions(user: user, on: req) }
+                        .flatMap { _ in self.spendingBusinessLogic.calculateEndOfMonthBalance(for: user, on: req.db) }
+                        .flatMap { self.pushNotificationController.sendNotification(user: user, on: req) }
+                }.flatten(on: req.eventLoop)
+            }.flatMapErrorThrowing { error in
+                req.logger.error("\(error)")
+                throw error
+            }
 
-        return req.eventLoop.newSucceededFuture(result: .ok)
+        return req.eventLoop.makeSucceededFuture(.ok)
     }
 
-    func addRoutes(to router: Router) {
-        router.post(Routes.reconcile.rawValue, use: store)
+    func addRoutes(to router: RoutesBuilder) {
+        router.post(Routes.reconcile.path, use: store)
     }
 }

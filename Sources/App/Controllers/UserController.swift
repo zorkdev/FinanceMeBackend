@@ -1,5 +1,5 @@
 import Vapor
-import Authentication
+import Fluent
 
 final class UserController {
     private let spendingBusinessLogic = SpendingBusinessLogic()
@@ -7,15 +7,14 @@ final class UserController {
     private let starlingBalanceController = StarlingBalanceController()
 
     func showCurrentUser(_ req: Request) throws -> EventLoopFuture<UserResponse> {
-        let user = try req.requireAuthenticated(User.self)
-
-        let allowance = try spendingBusinessLogic.calculateAllowance(for: user, on: req)
-        let balance = try starlingBalanceController
+        let user = try req.auth.require(User.self)
+        let allowance = spendingBusinessLogic.calculateAllowance(for: user, on: req)
+        let balance = starlingBalanceController
             .getBalance(user: user, on: req)
             .map { $0.effectiveBalance.doubleValue }
 
         return [allowance, balance]
-            .flatten(on: req)
+            .flatten(on: req.eventLoop)
             .map { results in
                 var userResponse = user.response
                 userResponse.allowance = results[0]
@@ -25,50 +24,49 @@ final class UserController {
     }
 
     func store(_ req: Request) throws -> EventLoopFuture<UserResponse> {
-        try req.content.decode(UserRequest.self)
-            .flatMap { userRequest in
-                let hasher = try req.make(BCryptDigest.self)
-                let password = try hasher.hash(userRequest.password, cost: 7)
+        let userRequest = try req.content.decode(UserRequest.self)
+        let password = try Bcrypt.hash(userRequest.password, cost: 7)
 
-                let user = User(name: userRequest.name,
-                                email: userRequest.email,
-                                password: password,
-                                payday: userRequest.payday,
-                                startDate: userRequest.startDate,
-                                largeTransaction: userRequest.largeTransaction,
-                                sToken: nil,
-                                customerUid: nil,
-                                deviceTokens: [],
-                                dailySpendingAverage: 0,
-                                dailyTravelSpendingAverage: 0)
+        let user = User(name: userRequest.name,
+                        email: userRequest.email,
+                        password: password,
+                        payday: userRequest.payday,
+                        startDate: userRequest.startDate,
+                        largeTransaction: userRequest.largeTransaction,
+                        sToken: nil,
+                        customerUid: nil,
+                        deviceTokens: [],
+                        dailySpendingAverage: 0,
+                        dailyTravelSpendingAverage: 0)
 
-                return user.save(on: req)
-                    .flatMap { user in
-                        let token = try Token.generate(for: user)
-                        return token.save(on: req)
-                            .transform(to: user.response)
-                    }
+        return user.save(on: req.db)
+            .flatMapThrowing {
+                try user.generateToken()
+            }.flatMap { token in
+                return token.save(on: req.db)
+                    .transform(to: user.response)
             }
     }
 
     func updateCurrentUser(_ req: Request) throws -> EventLoopFuture<UserResponse> {
-        let user = try req.requireAuthenticated(User.self)
-        return try req.content.decode(UserResponse.self)
-            .flatMap { updatedUser in
-                user.name = updatedUser.name
-                user.largeTransaction = updatedUser.largeTransaction
-                user.payday = updatedUser.payday
-                user.startDate = updatedUser.startDate
-                return user.save(on: req)
-            }.flatMap { try self.spendingBusinessLogic.calculateAllowance(for: $0, on: req) }
+        let user = try req.auth.require(User.self)
+        let updatedUser = try req.content.decode(UserResponse.self)
+
+        user.name = updatedUser.name
+        user.largeTransaction = updatedUser.largeTransaction
+        user.payday = updatedUser.payday
+        user.startDate = updatedUser.startDate
+
+        return user.save(on: req.db)
+            .flatMap { self.spendingBusinessLogic.calculateAllowance(for: user, on: req) }
             .flatMap { allowance in
-                try self.starlingBalanceController
+                self.starlingBalanceController
                     .getBalance(user: user, on: req)
                     .map { (allowance, $0.effectiveBalance.doubleValue) }
             }.flatMap { allowance, balance in
-                try self.pushNotificationController.sendNotification(user: user,
-                                                                     allowance: allowance,
-                                                                     on: req)
+                self.pushNotificationController.sendNotification(user: user,
+                                                                 allowance: allowance,
+                                                                 on: req)
                     .map { _ in
                         var userResponse = user.response
                         userResponse.allowance = allowance
@@ -79,32 +77,32 @@ final class UserController {
     }
 
     func loginUser(_ req: Request) throws -> EventLoopFuture<Session> {
-        try req.content.decode(LoginRequest.self)
-            .flatMap { loginRequest -> EventLoopFuture<User?> in
-                let verifier = try req.make(BCryptDigest.self)
-                return User.authenticate(username: loginRequest.email,
-                                         password: loginRequest.password,
-                                         using: verifier,
-                                         on: req)
+        let loginRequest = try req.content.decode(LoginRequest.self)
+
+        return User
+            .query(on: req.db)
+            .filter(\.$email == loginRequest.email)
+            .first()
+            .unwrap(or: Abort(.unauthorized))
+            .flatMapThrowing { (user: User) -> User in
+                guard try user.verify(password: loginRequest.password) else { throw Abort(.notFound) }
+                return user
             }.flatMap { user in
-                guard let user = user else { throw Abort(.internalServerError) }
-                return try user.token
-                    .query(on: req)
+                user.$tokens
+                    .query(on: req.db)
                     .first()
-                    .map { token in
-                        guard let token = token else { throw Abort(.internalServerError) }
-                        return Session(token: token.token)
-                    }
+                    .unwrap(or: Abort(.notFound))
+                    .map { Session(token: $0.token) }
             }
     }
 
-    func addPublicRoutes(to router: Router) {
-        router.post(Routes.users.rawValue, use: store)
-        router.post(Routes.login.rawValue, use: loginUser)
+    func addPublicRoutes(to router: RoutesBuilder) {
+        router.post(Routes.users.path, use: store)
+        router.post(Routes.login.path, use: loginUser)
     }
 
-    func addRoutes(to router: Router) {
-        router.get(Routes.usersMe.rawValue, use: showCurrentUser)
-        router.patch(Routes.usersMe.rawValue, use: updateCurrentUser)
+    func addRoutes(to router: RoutesBuilder) {
+        router.get(Routes.users.path, Routes.usersMe.path, use: showCurrentUser)
+        router.patch(Routes.users.path, Routes.usersMe.path, use: updateCurrentUser)
     }
 }

@@ -1,23 +1,30 @@
 import Vapor
-import Authentication
 
 enum Routes: String {
+    enum Parameters: String {
+        case transaction = "transactionId"
+
+        var path: PathComponent { .parameter(rawValue) }
+    }
+
     case api = "api"
     case login = "login"
     case users = "users"
-    case usersMe = "users/me"
+    case usersMe = "me"
     case transactions = "transactions"
-    case transactionPayload = "transactions/payload"
+    case transactionPayload = "payload"
     case reconcile = "reconcile"
     case endOfMonthSummaries = "endOfMonthSummaries"
     case deviceToken = "deviceToken"
     case metrics = "metrics"
     case health = "health"
+
+    var path: PathComponent { .constant(rawValue) }
 }
 
-public func routes(_ router: Router) throws {
-    let apiGroup = router.grouped(Routes.api.rawValue)
-    let tokenGroup = apiGroup.grouped(User.tokenAuthMiddleware())
+func routes(_ app: Application) throws {
+    let apiGroup = app.grouped(Routes.api.path)
+    let tokenGroup = apiGroup.grouped(Token.authenticator(), Token.guardMiddleware())
 
     let userController = UserController()
     userController.addRoutes(to: tokenGroup)

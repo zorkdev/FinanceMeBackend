@@ -1,11 +1,11 @@
 import Vapor
 
 final class HealthController {
-    func show(_ req: Request) throws -> EventLoopFuture<Health> {
-        req.eventLoop.newSucceededFuture(result: Health())
+    func show(_ req: Request) -> EventLoopFuture<Health> {
+        req.eventLoop.makeSucceededFuture(Health())
     }
 
-    func addPublicRoutes(to router: Router) {
-        router.get(Routes.health.rawValue, use: show)
+    func addPublicRoutes(to router: RoutesBuilder) {
+        router.get(Routes.health.path, use: show)
     }
 }
