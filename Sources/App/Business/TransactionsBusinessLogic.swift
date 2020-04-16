@@ -48,8 +48,8 @@ final class TransactionsBusinessLogic {
                                                 return oldTransaction.update(on: req.db)
                                             }
                                     }
-                            }.flatten(on: req.eventLoop)
-                            .map { transactions }
+                                }.flatten(on: req.eventLoop)
+                                .map { transactions }
                         }.flatMap { (_: [Transaction]) -> EventLoopFuture<[Transaction]> in
                             self.fetchTransactions(for: user, from: from, to: now, on: req.db)
                         }

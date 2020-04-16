@@ -92,6 +92,7 @@ final class TransactionController {
 
     func handlePayload(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
         if let payload = try? req.content.decode(TransactionPayload.self) {
+            // swiftlint:disable:next first_where
             _ = User
                 .query(on: req.db)
                 .filter(\.$customerUid == payload.customerUid)

@@ -3,7 +3,7 @@ import Fluent
 import FluentPostgresDriver
 
 extension PostgresConfiguration {
-    public init?(url: URL, tlsConfiguration: TLSConfiguration?) {
+    init?(url: URL, tlsConfiguration: TLSConfiguration?) {
         guard url.scheme?.hasPrefix("postgres") == true,
             let username = url.user,
             let password = url.password,

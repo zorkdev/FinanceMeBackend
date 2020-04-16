@@ -26,7 +26,7 @@ final class PushNotificationController {
                 self.sendNotification(deviceToken: $0,
                                       allowance: allowance,
                                       on: req)
-        }.flatten(on: req.eventLoop)
+            }.flatten(on: req.eventLoop)
     }
 
     func sendNotification(deviceToken: String, allowance: Double, on req: Request) -> EventLoopFuture<Data> {

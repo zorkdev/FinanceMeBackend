@@ -43,8 +43,7 @@ final class UserController {
             .flatMapThrowing {
                 try user.generateToken()
             }.flatMap { token in
-                return token.save(on: req.db)
-                    .transform(to: user.response)
+                token.save(on: req.db).transform(to: user.response)
             }
     }
 
@@ -79,6 +78,7 @@ final class UserController {
     func loginUser(_ req: Request) throws -> EventLoopFuture<Session> {
         let loginRequest = try req.content.decode(LoginRequest.self)
 
+        // swiftlint:disable:next first_where
         return User
             .query(on: req.db)
             .filter(\.$email == loginRequest.email)
