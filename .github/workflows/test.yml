@@ -10,9 +10,7 @@ jobs:
     - name: Select Xcode version
       run: sudo xcode-select -switch /Applications/Xcode_11.4.app
     - name: Test
-      run: |
-        brew install libressl
-        sh test.sh
+      run: sh test.sh
 
   test-linux:
     runs-on: ubuntu-latest
