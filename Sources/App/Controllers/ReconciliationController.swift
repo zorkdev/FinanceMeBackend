@@ -11,8 +11,7 @@ final class ReconciliationController {
             .all()
             .flatMap { users in
                 users.map { user in
-                    self.spendingBusinessLogic.updateDailySpendingAverage(user: user, on: req.db)
-                        .flatMap { self.transactionsBusinessLogic.updateTransactions(user: user, on: req) }
+                    self.transactionsBusinessLogic.updateTransactions(user: user, on: req)
                         .flatMap { _ in self.spendingBusinessLogic.calculateEndOfMonthBalance(for: user, on: req.db) }
                         .flatMap { self.pushNotificationController.sendNotification(user: user, on: req) }
                 }.flatten(on: req.eventLoop)
