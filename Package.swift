@@ -11,9 +11,9 @@ let package = Package(
         .library(name: "App", targets: ["App"])
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.3.0"),
-        .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0-rc.2.1"),
-        .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.0.0-rc.1"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.15.2"),
+        .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0"),
+        .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.0.0"),
         .package(url: "https://github.com/realm/SwiftLint.git", from: "0.39.2")
     ],
     targets: [
