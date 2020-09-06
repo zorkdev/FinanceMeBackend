@@ -418,12 +418,12 @@ extension Array where Element: Transaction {
     func filter(regularTransactions: [Transaction]) -> [Transaction] {
         let mappedRegularTransactions: [(String, Double?)] = regularTransactions
             .compactMap { transaction in
-                guard let narrative = transaction.internalNarrative else { return nil }
+                guard let narrative = transaction.internalNarrative?.lowercased() else { return nil }
                 return (narrative, transaction.internalAmount)
             }
 
         return self.filter { transaction in
-            let mappedTransaction = (transaction.narrative, transaction.amount)
+            let mappedTransaction = (transaction.narrative.lowercased(), transaction.amount)
             return !mappedRegularTransactions
                 .contains { regularTransaction in
                     if let amount = regularTransaction.1 {
