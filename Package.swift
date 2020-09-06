@@ -11,10 +11,10 @@ let package = Package(
         .library(name: "App", targets: ["App"])
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.24.0"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.29.1"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0"),
         .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.1.0"),
-        .package(url: "https://github.com/realm/SwiftLint.git", from: "0.39.2")
+        .package(url: "https://github.com/realm/SwiftLint.git", from: "0.40.1")
     ],
     targets: [
         .target(name: "App", dependencies: [
